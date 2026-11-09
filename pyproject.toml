@@ -1,0 +1,14 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nomondo"
+version = "0.1.0"
+description = "A world of restaurant discoveries, collected in one place."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = ["openai>=2,<3", "pydantic>=2,<3"]
+
+[tool.setuptools]
+py-modules = ["nomondo", "main", "restaurant_server"]
