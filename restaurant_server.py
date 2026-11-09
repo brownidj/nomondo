@@ -10,7 +10,7 @@ import sqlite3
 from urllib.parse import urlsplit
 
 ROOT = Path(__file__).resolve().parent
-LIST_FIELDS = ('id', 'restaurant_name', 'city', 'country', 'cuisine', 'special_dish', 'notes')
+LIST_FIELDS = ('id', 'restaurant_name', 'city', 'country', 'cuisine', 'special_dish', 'notes', 'needs_review')
 
 
 def read_restaurants(database: Path) -> list[dict]:

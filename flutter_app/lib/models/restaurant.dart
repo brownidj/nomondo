@@ -7,6 +7,7 @@ class Restaurant {
     this.cuisine,
     this.specialDish,
     this.notes,
+    this.needsReview = false,
   });
 
   final int id;
@@ -16,6 +17,7 @@ class Restaurant {
   final String? cuisine;
   final String? specialDish;
   final String? notes;
+  final bool needsReview;
 
   factory Restaurant.fromJson(Map<String, dynamic> json) {
     String? text(String field) {
@@ -29,6 +31,10 @@ class Restaurant {
 
     final id = json['id'];
     if (id is! int) throw const FormatException('Invalid restaurant ID');
+    final review = json['needs_review'];
+    if (review is! bool && review != 0 && review != 1) {
+      throw const FormatException('Invalid restaurant review flag');
+    }
     return Restaurant(
       id: id,
       name: text('restaurant_name') ?? 'Unnamed restaurant',
@@ -37,6 +43,7 @@ class Restaurant {
       cuisine: text('cuisine'),
       specialDish: text('special_dish'),
       notes: text('notes'),
+      needsReview: review == true || review == 1,
     );
   }
 

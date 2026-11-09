@@ -29,7 +29,55 @@ Python data service. No application launches, platform builds, tests or Flutter
 analysis run. Follow `flutter_app/README.md` for commands and the manual checklist.
 Record tester, date, environment and results when those checks are performed.
 
+## Alphabetical sorting — 9 November 2026
+
+Goal: sort the visible restaurant collection by restaurant name, city, country
+or cuisine, in ascending or descending alphabetical order.
+
+Scope and tasks: add a shared comparator, a Sort by selector and direction
+button for every window width, and clickable headings for the four supported
+desktop columns. Apply sorting after all existing filters and retain sort state
+across refresh. No database or service changes are required.
+
+Acceptance and done-when conditions:
+
+- Restaurant name A–Z is the initial order.
+- Choosing another field starts at A–Z; the direction control and repeated
+  clicks on the active heading toggle A–Z / Z–A consistently.
+- Comparison ignores letter case; missing values remain last in both directions.
+- Equal groups have a deterministic order, retaining separate duplicate records.
+- Search, country and Needs review filters still work with every sort option.
+- Refresh retains the sort selection; both table and card layouts use that order.
+- Manual verification in Chrome or macOS confirms the controls, ordering and
+  responsive layout, with the tester, environment, date and results recorded.
+
+Implementation status: implemented. Verification status: source review and Dart
+formatting only; no tests, Flutter analysis, app launches or builds run by Codex.
+Manual verification remains pending under PROGRAMMING_CRITERIA.md section 4.
+
+Suggested focused commands, from `flutter_app`:
+
+```zsh
+flutter analyze lib/models/restaurant_sort.dart lib/screens/restaurant_list_page.dart
+flutter run -d chrome
+```
+
+Suggested commit: `Add alphabetical sorting to the restaurant collection`.
+
 Done when: manual browser/macOS checks confirm the requested fields, data access,
 search, filtering, refresh and responsive layout. No automated tests added.
 
 Suggested commit: `Add Flutter restaurant browser backed by local SQLite service`.
+
+## Review filter
+
+Added `needs_review` to the read-only response and Dart model. A filter chip
+restricts the list to flagged records while retaining the existing search and
+country conditions; clearing filters resets all three. An explicit shared scroll
+controller fixes a desktop scrollbar assertion exposed during the live refresh.
+
+Verification on 2026-11-09 (Codex): Dart formatting and Python syntax check passed;
+the service was restarted and Flutter hot-restarted. The visible Chrome app's
+review-only selection displayed 202 of 490 restaurants, matching SQLite and the
+API. Left the filter enabled for review. No new automated tests or Flutter analysis
+were run for this change.

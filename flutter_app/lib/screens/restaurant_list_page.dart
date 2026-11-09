@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../data/restaurant_repository.dart';
 import '../models/restaurant.dart';
+import '../models/restaurant_sort.dart';
 
 class RestaurantListPage extends StatefulWidget {
   const RestaurantListPage({super.key});
@@ -13,11 +14,15 @@ class RestaurantListPage extends StatefulWidget {
 class _RestaurantListPageState extends State<RestaurantListPage> {
   final _repository = RestaurantRepository();
   final _search = TextEditingController();
+  final _scroll = ScrollController();
   List<Restaurant> _restaurants = const [];
   String _country = '';
+  bool _needsReviewOnly = false;
   bool _loading = false;
   bool _hasLoaded = false;
   bool _failed = false;
+  RestaurantSortField _sortField = RestaurantSortField.name;
+  bool _sortAscending = true;
 
   @override
   void initState() {
@@ -28,6 +33,7 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
   @override
   void dispose() {
     _search.dispose();
+    _scroll.dispose();
     _repository.close();
     super.dispose();
   }
@@ -56,6 +62,19 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
     }
   }
 
+  void _selectSort(RestaurantSortField field, {bool toggle = false}) {
+    setState(() {
+      _sortAscending = toggle && field == _sortField ? !_sortAscending : true;
+      _sortField = field;
+    });
+    if (_scroll.hasClients) _scroll.jumpTo(0);
+  }
+
+  void _toggleSortDirection() {
+    setState(() => _sortAscending = !_sortAscending);
+    if (_scroll.hasClients) _scroll.jumpTo(0);
+  }
+
   @override
   Widget build(BuildContext context) {
     final countries =
@@ -69,9 +88,11 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
     final visible = _restaurants
         .where((restaurant) {
           return (_country.isEmpty || restaurant.country == _country) &&
+              (!_needsReviewOnly || restaurant.needsReview) &&
               (query.isEmpty || restaurant.matches(query));
         })
         .toList(growable: false);
+    visible.sort((a, b) => _sortField.compare(a, b, ascending: _sortAscending));
 
     return Scaffold(
       body: SafeArea(
@@ -159,7 +180,12 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
                         const SizedBox(height: 12),
                       ],
                       if (_loading) const LinearProgressIndicator(minHeight: 2),
-                      if (wide && visible.isNotEmpty) const _TableHeading(),
+                      if (wide && visible.isNotEmpty)
+                        _TableHeading(
+                          sortField: _sortField,
+                          ascending: _sortAscending,
+                          onSort: (field) => _selectSort(field, toggle: true),
+                        ),
                       Expanded(child: _results(visible, wide)),
                     ],
                   ),
@@ -209,7 +235,7 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
         ),
       ),
     );
-    return compact
+    final locationFilters = compact
         ? Column(children: [search, const SizedBox(height: 12), country])
         : Row(
             children: [
@@ -218,6 +244,65 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
               SizedBox(width: 250, child: country),
             ],
           );
+    final reviewCount = _restaurants
+        .where((restaurant) => restaurant.needsReview)
+        .length;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        locationFilters,
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 16,
+          runSpacing: 12,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            FilterChip(
+              avatar: const Icon(Icons.flag_outlined, size: 18),
+              label: Text('Needs review only ($reviewCount)'),
+              selected: _needsReviewOnly,
+              onSelected: (selected) =>
+                  setState(() => _needsReviewOnly = selected),
+            ),
+            SizedBox(
+              width: 230,
+              child: InputDecorator(
+                decoration: const InputDecoration(labelText: 'Sort by'),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<RestaurantSortField>(
+                    value: _sortField,
+                    isDense: true,
+                    isExpanded: true,
+                    items: RestaurantSortField.values
+                        .map(
+                          (field) => DropdownMenuItem(
+                            value: field,
+                            child: Text(field.label),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (field) {
+                      if (field != null) _selectSort(field);
+                    },
+                  ),
+                ),
+              ),
+            ),
+            Tooltip(
+              message: _sortAscending ? 'Switch to Z–A' : 'Switch to A–Z',
+              child: OutlinedButton.icon(
+                onPressed: _toggleSortDirection,
+                icon: Icon(
+                  _sortAscending ? Icons.arrow_upward : Icons.arrow_downward,
+                  size: 18,
+                ),
+                label: Text(_sortAscending ? 'A–Z' : 'Z–A'),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
   }
 
   Widget _errorMessage() => Container(
@@ -269,6 +354,7 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
                 onPressed: () => setState(() {
                   _search.clear();
                   _country = '';
+                  _needsReviewOnly = false;
                 }),
                 child: const Text('Clear filters'),
               ),
@@ -277,7 +363,9 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
       );
     }
     return Scrollbar(
+      controller: _scroll,
       child: ListView.separated(
+        controller: _scroll,
         padding: const EdgeInsets.only(bottom: 24),
         itemCount: visible.length,
         separatorBuilder: (_, _) => SizedBox(height: wide ? 1 : 12),
@@ -298,17 +386,70 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
   }
 }
 
-const _columns = <(String, int)>[
-  ('Restaurant name', 3),
-  ('City', 2),
-  ('Country', 2),
-  ('Cuisine', 3),
-  ('Special dish', 3),
-  ('Notes', 4),
+const _columns = <(String, int, RestaurantSortField?)>[
+  ('Restaurant name', 3, RestaurantSortField.name),
+  ('City', 2, RestaurantSortField.city),
+  ('Country', 2, RestaurantSortField.country),
+  ('Cuisine', 3, RestaurantSortField.cuisine),
+  ('Special dish', 3, null),
+  ('Notes', 4, null),
 ];
 
 class _TableHeading extends StatelessWidget {
-  const _TableHeading();
+  const _TableHeading({
+    required this.sortField,
+    required this.ascending,
+    required this.onSort,
+  });
+
+  final RestaurantSortField sortField;
+  final bool ascending;
+  final ValueChanged<RestaurantSortField> onSort;
+
+  Widget _heading(
+    BuildContext context,
+    (String, int, RestaurantSortField?) column,
+  ) {
+    final field = column.$3;
+    final label = Text(
+      column.$1,
+      style: const TextStyle(fontWeight: FontWeight.w600),
+    );
+    if (field == null) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        child: label,
+      );
+    }
+    final active = sortField == field;
+    final nextAscending = !active || !ascending;
+    return Semantics(
+      selected: active,
+      child: Tooltip(
+        message: 'Sort by ${field.label}: ${nextAscending ? 'A–Z' : 'Z–A'}',
+        child: TextButton(
+          onPressed: () => onSort(field),
+          style: TextButton.styleFrom(
+            foregroundColor: Theme.of(context).colorScheme.onSurface,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+            shape: const RoundedRectangleBorder(),
+          ),
+          child: Row(
+            children: [
+              Expanded(child: label),
+              if (active) ...[
+                const SizedBox(width: 4),
+                Icon(
+                  ascending ? Icons.arrow_upward : Icons.arrow_downward,
+                  size: 16,
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) => Container(
@@ -316,19 +457,8 @@ class _TableHeading extends StatelessWidget {
     child: Row(
       children: _columns
           .map(
-            (column) => Expanded(
-              flex: column.$2,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 14,
-                ),
-                child: Text(
-                  column.$1,
-                  style: const TextStyle(fontWeight: FontWeight.w600),
-                ),
-              ),
-            ),
+            (column) =>
+                Expanded(flex: column.$2, child: _heading(context, column)),
           )
           .toList(),
     ),

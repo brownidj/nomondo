@@ -19,9 +19,13 @@ it does not load `.env` automatically. Never commit your key.
 
 ## Flutter interface
 
+See [Running Nomondo](docs/RUNNING_THE_APP.md) for Chrome and macOS launch commands,
+iOS preparation, the two-terminal workflow and troubleshooting.
+
 The Dart/Flutter application in `flutter_app` lists restaurant name, city, country,
 cuisine, special dish and notes. It includes search across those fields, country
-filtering and refresh, with desktop columns and compact cards on smaller windows.
+filtering, a **Needs review only** filter and refresh, with desktop columns and
+compact cards on smaller windows.
 
 Start the local data service from the project root:
 
