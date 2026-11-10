@@ -6,12 +6,13 @@ import '../models/restaurant.dart';
 import 'browser_maps_stub.dart'
     if (dart.library.js_interop) 'browser_maps_web.dart';
 
-/// Open a map search using the venue identity and its listed address.
+/// Open a map search using the venue, city and listed address where available.
 Future<bool> openRestaurantMap(Restaurant restaurant) async {
   final address = restaurant.address?.trim();
-  if (address == null ||
-      address.isEmpty ||
-      address.toLowerCase() == 'not listed') {
+  final city = restaurant.city?.trim();
+  bool listed(String? value) =>
+      value != null && value.isNotEmpty && value.toLowerCase() != 'not listed';
+  if (!listed(address) && !listed(city)) {
     return false;
   }
   final query =

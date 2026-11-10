@@ -55,6 +55,7 @@ key.properties
 /data/restaurants.csv
 /data/backups/
 /data/logs/
+/data/mobile_connection.json
 *.sqlite3-journal
 *.sqlite3-wal
 *.sqlite3-shm

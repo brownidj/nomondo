@@ -3,6 +3,7 @@ import re
 import unicodedata
 
 import phonenumbers
+from country_names import country_code
 
 _REGIONS = dict(zip(
     'Argentina|Australia|Austria|Belgium|Brazil|Cambodia|Canada|Chile|China|Colombia|Czech Republic|Denmark|Egypt|Finland|France|Germany|Greece|Guatemala|Hong Kong|India|Indonesia|Ireland|Italy|Jamaica|Japan|Jordan|Malaysia|Mauritius|Mexico|Morocco|Netherlands|New Zealand|Peru|Poland|Portugal|Russia|Saint Barthélemy|Singapore|Slovenia|South Africa|South Korea|Spain|Sri Lanka|Sweden|Switzerland|Thailand|Turkey|United Kingdom|United States|Vietnam'.lower().split('|'),
@@ -17,7 +18,7 @@ def country_region(country):
         return 'HK'
     if any(part in name for part in ('united kingdom', 'england', 'scotland', 'wales')):
         return 'GB'
-    return _REGIONS.get(name)
+    return _REGIONS.get(name) or country_code(country)
 
 
 def format_telephone(value, country):

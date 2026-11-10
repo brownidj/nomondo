@@ -1,0 +1,295 @@
+{
+  "groups": [
+    {
+      "ids": [
+        489,
+        782
+      ],
+      "reason": "Same Noma venue, phone and street address"
+    },
+    {
+      "ids": [
+        504,
+        523
+      ],
+      "reason": "Same name, phone and street address"
+    },
+    {
+      "ids": [
+        512,
+        801
+      ],
+      "reason": "Same name, phone and street address"
+    },
+    {
+      "ids": [
+        528,
+        765,
+        956
+      ],
+      "reason": "Same Wolfgat venue and address"
+    },
+    {
+      "ids": [
+        556,
+        677
+      ],
+      "reason": "Accented/unaccented name; same Hanoi street address"
+    },
+    {
+      "ids": [
+        602,
+        603,
+        604,
+        605,
+        606,
+        609
+      ],
+      "reason": "Same Nathan Outlaw venue, phone and street address; UK abbreviation"
+    },
+    {
+      "ids": [
+        607,
+        610
+      ],
+      "reason": "Apostrophe variation; same phone and venue"
+    },
+    {
+      "ids": [
+        608,
+        611
+      ],
+      "reason": "London vs Notting Hill; same name, phone and street"
+    },
+    {
+      "ids": [
+        612,
+        744
+      ],
+      "reason": "Same name, phone and address; UK abbreviation"
+    },
+    {
+      "ids": [
+        613,
+        659
+      ],
+      "reason": "Same name, phone and address"
+    },
+    {
+      "ids": [
+        618,
+        723
+      ],
+      "reason": "Same name, phone and address; UK abbreviation"
+    },
+    {
+      "ids": [
+        636,
+        661
+      ],
+      "reason": "Same name, phone and address"
+    },
+    {
+      "ids": [
+        654,
+        745
+      ],
+      "reason": "Apostrophe variation; same phone and street"
+    },
+    {
+      "ids": [
+        696,
+        820
+      ],
+      "reason": "Restaurant prefix; same Berlin phone and street"
+    },
+    {
+      "ids": [
+        698,
+        928
+      ],
+      "reason": "Bonci Pizzarium naming variation; same phone and street"
+    },
+    {
+      "ids": [
+        713,
+        746
+      ],
+      "reason": "Same Le Manoir venue and street; preserve extra phone"
+    },
+    {
+      "ids": [
+        720,
+        790
+      ],
+      "reason": "Same name, phone and address"
+    },
+    {
+      "ids": [
+        730,
+        932
+      ],
+      "reason": "Same name, phone and branch address"
+    },
+    {
+      "ids": [
+        732,
+        794
+      ],
+      "reason": "Same name, phone and address"
+    },
+    {
+      "ids": [
+        754,
+        763
+      ],
+      "reason": "Sign annotation added to name; same phone and street"
+    },
+    {
+      "ids": [
+        756,
+        878
+      ],
+      "reason": "Same name, phone and street"
+    },
+    {
+      "ids": [
+        759,
+        876
+      ],
+      "reason": "Same Plachutta branch, phone and address"
+    },
+    {
+      "ids": [
+        774,
+        908,
+        949
+      ],
+      "reason": "Same Tagine venue, phone and street"
+    },
+    {
+      "ids": [
+        905,
+        966
+      ],
+      "reason": "Same name, phone and address"
+    },
+    {
+      "ids": [
+        910,
+        929
+      ],
+      "reason": "MTR name variation, same Lalbagh Road branch; preserve differing phones"
+    },
+    {
+      "ids": [
+        911,
+        930
+      ],
+      "reason": "Bangalore/Bengaluru variation; same name, phone and street"
+    },
+    {
+      "ids": [
+        916,
+        943,
+        960
+      ],
+      "reason": "Same Brahmins Coffee Bar and phone; preserve conflicting street numbers for review"
+    },
+    {
+      "ids": [
+        920,
+        944
+      ],
+      "reason": "Same Women’s Food Court main MG Road location; shared alternative phone, preserve address uncertainty"
+    }
+  ],
+  "fingerprints": {
+    "489": "e6c4e5b70de5e5a4454bd7c46f072e3d251986ac396a971c4d22f6b25d21da30",
+    "782": "9b24d3b8e7507f034ab044ddd7eae921282e00a99a3d2c58b7145131cfc1f1b7",
+    "504": "ee5cf39881a8e9226b98fdb868e96e4509ee59a04bf51eae61597f74526f0f80",
+    "523": "58a57a99d95b8e93b05866232f5f9a4ed2b6718b3cbd8a4facaca5de37b010b2",
+    "512": "9100671aaf705ca15ee67d57acaccafdb92a88b46cd749508bf25ed8a9e15ea0",
+    "801": "d6d19a587b7dbc5e1520cd09e5fe9939f6f75b35523f07c7f9213c68668835bc",
+    "528": "7c44aeba69db8018b733524f1c49468a4364045477a91169076f2da48e61d264",
+    "765": "c77ac4012210b83dc49419255cdcaf098e050f15d890316cc05ffa0427a7ee70",
+    "956": "9af507ede52eff81e39845495df3a7110dc455e441ac380cc8ab55f10544217e",
+    "556": "62d7065c079ab11705db7a7c792b11a0e2aef5da042a55bf9c417b4663b43c1d",
+    "677": "f68e473a46c482f97ef5dd42d742284b22fd4ce15cc3158e4883bcc063d14c88",
+    "602": "b19d7b60290ca153de545b72423a2b009303c2f924a3278e07bef46639e7784a",
+    "603": "5bedbbf094b990f87fe9c8daa13a9ee6870efe0500674b59eeeb2a30cae58e4e",
+    "604": "79c96dc8a82dbd2279f109107e3d6314b25347443b2e067dfcbcc5fe6c45a3ce",
+    "605": "e7e843259ddcc6878fd9e40983883b442d953001caa23142ac35dbd8f33c580a",
+    "606": "ff1c29466e3f55b3eb587ab995d3e9b69608503dded43d2fbf9a383b39e8c6ad",
+    "609": "9e4b96a8ce0b4cb907259c1a5c273935d2ceba368fd32a9496a3dea7c25a9274",
+    "607": "c9d1e1fec27eba88b094034511a776914d7133e39f7c6a6007fcbbefb41a6d3e",
+    "610": "9842f8bb0ffbe523cde1592a5e82c7f01e48fc30e3faeaed409a7a8dfd5bb3a2",
+    "608": "3efc121d57c14bec67f8fa9c471b8fdc7d24925eb68b264b9d132638a2c3d8ab",
+    "611": "5a09625be856b18f82de4839c43f3331e53f9c341eaf44bc02faaaae0cd74612",
+    "612": "3056028a30b05643276763406b69c519d3496f668fc4f54266b5d7e29f0dece9",
+    "744": "0357b1c2811e98112b7702dc9c92afcf6f7e2151101cb87065a040cc40566bae",
+    "613": "76d00f7c61dc3ee645ed2c754c35d8d39b1ec13f76cbaf8afea31f45b0dd3516",
+    "659": "8d41140bc5de9e26e4b2cd98417a89e2f3db59a304270843762a16086fb93c0a",
+    "618": "d87969952b459005608dc5fca51ef8af1f73a7fe32dfacbd8626168c51aa69af",
+    "723": "cefe1273df7a722d58751f99d78579bc6367bbe4d1894d6dde575cff1cfdae4d",
+    "636": "2051b422bb0280d1ebf7a33d99523abaa3b551ed26983b590073de7af98fa503",
+    "661": "3b49c7696d1defda76507f8f97531d4fde18a026076b68c075d5e69137a74290",
+    "654": "e40bc0904cd8c54561af80a64db2601d260aaa1d28da4cb662cca4d9d941b783",
+    "745": "0e0575bd976d49599eedf837d512332ef5581a3d92811f0a58250ea8763d109a",
+    "696": "5eecc277f138c05a5930aa731aaf9d2ff5ba1dadc87fc0bde0ea3c3f8952e8d8",
+    "820": "fa2f2e4cff107d6676b9b9921a839472a4de5d49018920c490b2660a7bcd4c25",
+    "698": "c3eb82f6f73067ada4b80a8e37c7e71005004115bc15046e7ee70e64e92fc4fd",
+    "928": "814b7ef70baaa79b0a89c5e6237ebf0768c4f31588ae02733713abd2cd953caa",
+    "713": "c72edce7aa5a765899bfcf03fd87d42dafe565f97f811b200f269b853e78ee99",
+    "746": "f98b1ff0253fb5fb3bcd550b7598a0ecb570fc55a1b032007e37556feaeae1d6",
+    "720": "32b715b65572e0bceab4bc992846935e212afccb59e2db444d49567d54ab3dde",
+    "790": "0dcbf47b1c75877af2ed7f92ea9f938e1f91a6d9d4e1efb92ccd52535e9192dc",
+    "730": "89cdde1f0c46affc42315bc6cdb6da0c54d0b647f1472142c493a233ae30165a",
+    "932": "2c4fbb9f60ec4584c1960fd3868d2baf82af21fcef57e5776e8b806082504d1f",
+    "732": "a50a5c0c74ade9fe20d5114e1a2edc98fb700104ecf261bf4200d6a812c76bfb",
+    "794": "f8e486ab7d5e24dea9224392a7e0a4537ecbbadd011205ea14aa502e706f8c33",
+    "754": "75b7571b00b66f590a2c27542df6bba8a83571a6c4efbe6ded02a60420e35de9",
+    "763": "728f51cdd54673cdc2c59fe56eda5486d59032701da8f876f22aa8b94acc44b1",
+    "756": "cd60306230c53056bed535375bcafd4e04c20015bc699389b9680d97a1187464",
+    "878": "8951e2d7dd5fc8a6624fe2b279aed98669824ae049f34d07abc7bbbde8d9387b",
+    "759": "4b0af05baf2cef7093d15828fff6d96091e8917720c0a1d55cd72fad1e2b7290",
+    "876": "38caa0bbec551244a894e06565a6b3ef130a4c25d32e13510bac3dae1f74f806",
+    "774": "cd8951945864b52d94e00cb7bd304fe0728de691062587d078de38ecf5d41dfe",
+    "908": "e5c68eff48dafde4cc3dc2950d99fa69830435ca8145d33b7a65d02a9413c1bd",
+    "949": "7ba3cc808e813c355e733c6b563741347f74af65dfb61f5ab6df9fd52c11d777",
+    "905": "bb90909e0f39a5a8b71fdece03141adc4c215547527536c44d6936780f64b7a0",
+    "966": "5e375704bde7c04690821410116e2735c637a64ca2b66ce737f5cf2cafc92d12",
+    "910": "f3caae221d6d240c517f2de502bd9588f7364bfd354cf2c9e6b6c634956f25ce",
+    "929": "6bbb1f6130a4b8d1dc5eb9163bc206b1fc12cd432be3738ab0764786333178c3",
+    "911": "d28cdb4639e9c8c59dba1fe4d6ebd02315c24146de3a4120cc55f3af44fb8179",
+    "930": "15ed50eabc6316457aa57050925dc795a040c04c908d9b2dd2dc856d0b1caa28",
+    "916": "c3fb312b7abb2dba8da85232f2a5ff328606da505857b38436da4fd43ffd0b1d",
+    "943": "05f2700d67df5777dc2bb6cc5088d1b1d3b218ce4690c74698f35cbe4fc0ad68",
+    "960": "46dcd6332fc39290d5d7381a13edbe0ba72d2ec5d190db84ff68398fd652175f",
+    "920": "a1bd5504d244186086bc1bad7543190e6905636ab316b03e33bdb395f56a0791",
+    "944": "262d6f7cf049da0c5ca545271cc8f20ce6f26a3bf6ee90e8613f4691bd71c299"
+  },
+  "kept_separate": [
+    {
+      "ids": [
+        525,
+        652
+      ],
+      "reason": "Artichoke: different countries/venues"
+    },
+    {
+      "ids": [
+        693,
+        694
+      ],
+      "reason": "Distinct names, streets, phones; fuzzy-name false positive"
+    },
+    {
+      "ids": [
+        831,
+        832
+      ],
+      "reason": "Distinct restaurants and locations; fuzzy-name false positive"
+    }
+  ]
+}

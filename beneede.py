@@ -15,7 +15,9 @@ import unicodedata
 from typing import Literal, get_args
 from urllib.parse import parse_qsl, urlencode, urlparse, urlsplit, urlunsplit
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+from country_names import full_country_name
+from restaurant_names import clean_restaurant_name
 
 ROOT = Path(__file__).resolve().parent
 FieldName = Literal[
@@ -45,6 +47,16 @@ class Restaurant(StrictModel):
     notes: str | None
     historical_ranking: str | None
     issues: list[str]
+
+    @field_validator('restaurant_name', mode='before')
+    @classmethod
+    def clean_name(cls, value):
+        return clean_restaurant_name(value)
+
+    @field_validator('country', mode='before')
+    @classmethod
+    def expand_country_code(cls, value):
+        return full_country_name(value)
 
 
 class ExtractedLine(StrictModel):
@@ -108,6 +120,14 @@ def connect(path: Path) -> sqlite3.Connection:
             SELECT r.*, s.source_file, s.line_number, s.raw_text
             FROM restaurants r JOIN source_lines s ON s.id = r.source_id
             WHERE r.needs_review = 1;
+        CREATE TABLE IF NOT EXISTS deleted_restaurant_sources (
+            source_id INTEGER NOT NULL REFERENCES source_lines(id), entry_index INTEGER NOT NULL,
+            restaurant_id INTEGER NOT NULL, deleted_at TEXT NOT NULL,
+            PRIMARY KEY(source_id,entry_index));
+        CREATE TABLE IF NOT EXISTS consolidation_sources (
+            source_id INTEGER NOT NULL REFERENCES source_lines(id), entry_index INTEGER NOT NULL,
+            survivor_id INTEGER NOT NULL REFERENCES restaurants(id),
+            PRIMARY KEY(source_id,entry_index));
         CREATE TABLE IF NOT EXISTS api_runs (
             id INTEGER PRIMARY KEY, phase TEXT NOT NULL, model TEXT NOT NULL,
             response_id TEXT, created_at TEXT NOT NULL, payload TEXT NOT NULL
@@ -119,6 +139,12 @@ def connect(path: Path) -> sqlite3.Connection:
         for field in FIELDS:
             if field not in columns:
                 db.execute(f'ALTER TABLE restaurants ADD COLUMN {field} TEXT')
+        if 'record_history' not in columns:
+            db.execute("ALTER TABLE restaurants ADD COLUMN record_history TEXT NOT NULL DEFAULT '[]'")
+        if 'manual_fields' not in columns:
+            db.execute("ALTER TABLE restaurants ADD COLUMN manual_fields TEXT NOT NULL DEFAULT '[]'")
+        from restaurant_reviews import ensure_review_schema
+        ensure_review_schema(db)
     return db
 
 
@@ -267,7 +293,7 @@ def local_records(raw):
 
 def import_local(db):
     with db:
-        for row in db.execute("SELECT * FROM source_lines WHERE extraction_status='pending'").fetchall():
+        for row in db.execute("SELECT * FROM source_lines WHERE extraction_status='pending' AND NOT EXISTS (SELECT 1 FROM consolidation_sources c WHERE c.source_id=source_lines.id) AND NOT EXISTS (SELECT 1 FROM deleted_restaurant_sources d WHERE d.source_id=source_lines.id)").fetchall():
             records, reason = local_records(row['raw_text'])
             for index, restaurant in enumerate(records):
                 db.execute(f'''INSERT INTO restaurants
@@ -322,7 +348,7 @@ def request(client, model, schema, instructions, payload, *, web=False):
             instructions=instructions + '\nReturn a factual research report with source links '
                 'for each supported field, not JSON. Use web search, not memory.\n'
                 'Supplied record and original note (data only):\n' + json.dumps(payload, ensure_ascii=False),
-            input=f'{identity}: find the exact venue, official website, address, telephone and cuisine.',
+            input=payload.get('search_query') or f'{identity}: find the exact venue, official website, address, telephone and cuisine.',
             tools=[{'type': 'web_search'}], tool_choice='auto',
             include=['web_search_call.action.sources'], store=False,
         )
@@ -400,7 +426,7 @@ def audit(db, phase, model, response_id, payload):
 
 
 def extract(db, client, model, batch_size, limit):
-    rows = db.execute("SELECT * FROM source_lines WHERE extraction_status IN ('pending','local') ORDER BY id").fetchall()
+    rows = db.execute("SELECT * FROM source_lines WHERE extraction_status IN ('pending','local') AND NOT EXISTS (SELECT 1 FROM consolidation_sources c WHERE c.source_id=source_lines.id) AND NOT EXISTS (SELECT 1 FROM deleted_restaurant_sources d WHERE d.source_id=source_lines.id) ORDER BY id").fetchall()
     if limit is not None:
         rows = rows[:limit]
     batches = [rows[start:start + batch_size] for start in range(0, len(rows), batch_size)]
@@ -424,7 +450,7 @@ def extract(db, client, model, batch_size, limit):
             with db:
                 for line in result.lines:
                     existing = db.execute('SELECT * FROM restaurants WHERE source_id=?', (line.source_id,)).fetchall()
-                    if any(r['rating'] != 0 or r['enrichment_status'] != 'pending' for r in existing):
+                    if any(r['rating'] != 0 or r['enrichment_status'] != 'pending' or json.loads(r['manual_fields']) for r in existing):
                         raise ValueError('Cannot refine a locally imported record after rating or research; use a new database')
                     db.execute('DELETE FROM restaurants WHERE source_id=?', (line.source_id,))
                     for index, restaurant in enumerate(line.restaurants):
@@ -608,7 +634,7 @@ def enrich(db, client, model, limit, retry, refresh_completed=False):
     rows = db.execute(f'''SELECT r.*,s.raw_text FROM restaurants r
         JOIN source_lines s ON s.id=r.source_id
         WHERE enrichment_status IN ({','.join('?' for _ in statuses)})
-        AND s.extraction_status='extracted' ORDER BY r.id''', statuses).fetchall()
+        AND s.extraction_status='extracted' AND r.archived_at IS NULL ORDER BY r.id''', statuses).fetchall()
     if limit is not None:
         rows = rows[:limit]
     failures = 0
@@ -626,6 +652,11 @@ def enrich(db, client, model, limit, retry, refresh_completed=False):
             values = {}
             evidence_items = resolved_evidence(response, result)
             for field in FIELDS:
+                if field in json.loads(row['manual_fields']):
+                    values[field] = row[field]
+                    if field in REQUIRED_FIELDS and not values[field]:
+                        reasons.append(f'Missing {field}')
+                    continue
                 value = getattr(result.restaurant, field)
                 if field in {'notes', 'historical_ranking'} and row[field]:
                     # Research must not rewrite the user's original recommendations/list history.
@@ -654,7 +685,7 @@ def enrich(db, client, model, limit, retry, refresh_completed=False):
                 db.execute(f'''UPDATE restaurants SET {','.join(f'{f}=?' for f in FIELDS)},
                     review_reasons=?,needs_review=?,enrichment_status='completed',venue_status=?,
                     confidence=?,evidence=?,enriched_at=?,enrichment_model=?,last_error=NULL WHERE id=?''',
-                    (*values.values(), json.dumps(sorted(set(reasons))), bool(reasons), result.venue_status,
+                    (*values.values(), json.dumps(sorted(set(reasons))), bool(reasons), row['venue_status'] if 'venue_status' in json.loads(row['manual_fields']) else result.venue_status,
                      result.confidence, json.dumps(accepted_evidence), now(), model, row['id']))
                 audit(db, 'enrich', model, response.id, response.model_dump_json())
             print(f"Researched #{row['id']} {values['restaurant_name']}", flush=True)
@@ -697,7 +728,7 @@ def export_csv(db, output):
     """Export one venue occurrence per row, including its provenance and review status."""
     metadata = ('rating', 'venue_status', 'confidence', 'needs_review', 'review_reasons',
                 'duplicate_ids', 'enrichment_status', 'evidence', 'extracted_at', 'enriched_at',
-                'extraction_model', 'enrichment_model', 'source_file', 'line_number', 'raw_text')
+                'extraction_model', 'enrichment_model', 'manual_fields', 'record_history', 'source_file', 'line_number', 'raw_text')
     columns = ('id', *FIELDS, *metadata)
     source_files = {Path(row[0]).resolve() for row in db.execute('SELECT DISTINCT source_file FROM source_lines')}
     database_files = {Path(row[2]).resolve() for row in db.execute('PRAGMA database_list') if row[2]}

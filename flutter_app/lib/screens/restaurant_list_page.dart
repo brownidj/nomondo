@@ -5,6 +5,13 @@ import '../data/restaurant_repository.dart';
 import '../models/restaurant.dart';
 import '../models/restaurant_sort.dart';
 import '../services/restaurant_maps.dart';
+import '../services/restaurant_website.dart';
+import '../widgets/contact_tooltip.dart';
+import '../widgets/edit_restaurant_dialog.dart';
+import '../widgets/review_restaurant_dialog.dart';
+import '../widgets/restaurant_review_indicator.dart';
+import '../widgets/cuisine_details.dart';
+import '../services/app_capabilities.dart';
 
 class RestaurantListPage extends StatefulWidget {
   const RestaurantListPage({super.key});
@@ -19,7 +26,9 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
   final _scroll = ScrollController();
   List<Restaurant> _restaurants = const [];
   String _country = '';
+  String _city = '';
   bool _needsReviewOnly = false;
+  bool _showArchived = false;
   bool _loading = false;
   bool _hasLoaded = false;
   bool _failed = false;
@@ -53,8 +62,13 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
         _restaurants = restaurants;
         _hasLoaded = true;
         if (_country.isNotEmpty &&
-            !restaurants.any((restaurant) => restaurant.country == _country)) {
+            !_locationOptions(
+              restaurants.map((restaurant) => restaurant.country),
+            ).contains(_country)) {
           _country = '';
+        }
+        if (_city.isNotEmpty && !_citiesFor(_country).contains(_city)) {
+          _city = '';
         }
       });
     } catch (_) {
@@ -62,6 +76,57 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  void _acceptEdit(Restaurant updated) {
+    if (!mounted) return;
+    setState(() {
+      _restaurants = _restaurants
+          .map((item) => item.id == updated.id ? updated : item)
+          .toList();
+      if (!_locationOptions(_restaurants.map((item) => item.country))
+          .contains(_country)) {
+        _country = '';
+      }
+      if (!_citiesFor(_country).contains(_city)) _city = '';
+    });
+    ScaffoldMessenger.of(context)
+        .showSnackBar(const SnackBar(content: Text('Restaurant saved')));
+  }
+
+  void _acceptDelete(int id) {
+    if (!mounted) return;
+    setState(() {
+      _restaurants = _restaurants.where((item) => item.id != id).toList();
+      if (!_locationOptions(_restaurants.map((item) => item.country))
+          .contains(_country)) {
+        _country = '';
+      }
+      if (!_citiesFor(_country).contains(_city)) _city = '';
+    });
+    ScaffoldMessenger.of(context)
+        .showSnackBar(const SnackBar(content: Text('Restaurant deleted')));
+  }
+
+  Future<void> _addRestaurant() async {
+    final result = await addRestaurant(context);
+    if (!mounted || result == null) return;
+    setState(() {
+      final records = {
+        for (final restaurant in _restaurants) restaurant.id: restaurant,
+      };
+      for (final restaurant in result.restaurants) {
+        records[restaurant.id] = restaurant;
+      }
+      _restaurants = records.values.toList();
+    });
+    await _load();
+    if (!mounted) return;
+    final message =
+        '${result.addedCount} restaurant(s) added'
+        '${result.existingCount > 0 ? '; ${result.existingCount} already in the catalogue' : ''}';
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   void _selectSort(RestaurantSortField field, {bool toggle = false}) {
@@ -79,17 +144,17 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
 
   @override
   Widget build(BuildContext context) {
-    final countries =
-        _restaurants
-            .map((restaurant) => restaurant.country)
-            .whereType<String>()
-            .toSet()
-            .toList()
-          ..sort();
+    final countries = _locationOptions(
+      _restaurants.map((restaurant) => restaurant.country),
+    );
+    final cities = _citiesFor(_country);
     final query = _search.text.trim();
     final visible = _restaurants
         .where((restaurant) {
-          return (_country.isEmpty || restaurant.country == _country) &&
+          return restaurant.isArchived == _showArchived &&
+              (_country.isEmpty ||
+                  _sameLocation(restaurant.country, _country)) &&
+              (_city.isEmpty || _sameLocation(restaurant.city, _city)) &&
               (!_needsReviewOnly || restaurant.needsReview) &&
               (query.isEmpty || restaurant.matches(query));
         })
@@ -113,15 +178,14 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
                     children: [
                       Row(
                         children: [
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF245D50),
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                            child: const Icon(
-                              Icons.restaurant_menu_rounded,
-                              color: Colors.white,
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Image.asset(
+                              'assets/beneede-icon.png',
+                              width: 48,
+                              height: 48,
+                              cacheWidth: 144,
+                              semanticLabel: 'BeneEde icon',
                             ),
                           ),
                           const SizedBox(width: 14),
@@ -136,7 +200,7 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
                                       .headlineMedium
                                       ?.copyWith(fontWeight: FontWeight.w700),
                                 ),
-                                const Text('Your world of good food.'),
+                                const Text('Your world of good eats.'),
                               ],
                             ),
                           ),
@@ -165,18 +229,8 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
                         'Find a place, a cuisine, or something worth trying.',
                       ),
                       const SizedBox(height: 20),
-                      _filters(countries, compact),
+                      _filters(countries, cities, constraints.maxWidth < 1000),
                       const SizedBox(height: 16),
-                      Semantics(
-                        liveRegion: true,
-                        child: Text(
-                          _hasLoaded
-                              ? '${visible.length} of ${_restaurants.length} restaurants'
-                              : 'Loading your collection…',
-                          style: Theme.of(context).textTheme.labelLarge,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
                       if (_failed) ...[
                         _errorMessage(),
                         const SizedBox(height: 12),
@@ -200,7 +254,31 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
     );
   }
 
-  Widget _filters(List<String> countries, bool compact) {
+  bool _sameLocation(String? value, String selected) =>
+      value?.trim().toLowerCase() == selected.toLowerCase();
+
+  List<String> _locationOptions(Iterable<String?> values) {
+    final labels = <String, String>{};
+    for (final value in values) {
+      final label = value?.trim() ?? '';
+      if (label.isNotEmpty && label.toLowerCase() != 'not listed') {
+        labels.putIfAbsent(label.toLowerCase(), () => label);
+      }
+    }
+    return labels.values.toList()
+      ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+  }
+
+  List<String> _citiesFor(String country) => _locationOptions(
+    _restaurants
+        .where(
+          (restaurant) =>
+              country.isEmpty || _sameLocation(restaurant.country, country),
+        )
+        .map((restaurant) => restaurant.city),
+  );
+
+  Widget _filters(List<String> countries, List<String> cities, bool compact) {
     final search = TextField(
       controller: _search,
       onChanged: (_) => setState(() {}),
@@ -218,14 +296,21 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
       ),
     );
     final country = InputDecorator(
-      decoration: const InputDecoration(labelText: 'Country'),
+      decoration: const InputDecoration(labelText: 'Countries'),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
           value: _country,
           isDense: true,
           isExpanded: true,
           items: [
-            const DropdownMenuItem(value: '', child: Text('All countries')),
+            const DropdownMenuItem(
+              value: '',
+              child: Text(
+                'All countries',
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+              ),
+            ),
             ...countries.map(
               (country) => DropdownMenuItem(
                 value: country,
@@ -233,75 +318,202 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
               ),
             ),
           ],
-          onChanged: (value) => setState(() => _country = value ?? ''),
+          onChanged: (value) => setState(() {
+            _country = value ?? '';
+            if (_city.isNotEmpty && !_citiesFor(_country).contains(_city)) {
+              _city = '';
+            }
+          }),
         ),
       ),
     );
-    final locationFilters = compact
-        ? Column(children: [search, const SizedBox(height: 12), country])
+    final city = InputDecorator(
+      decoration: const InputDecoration(labelText: 'Cities'),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: _city,
+          isDense: true,
+          isExpanded: true,
+          items: [
+            const DropdownMenuItem(
+              value: '',
+              child: Text(
+                'All cities',
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
+              ),
+            ),
+            ...cities.map(
+              (city) => DropdownMenuItem(
+                value: city,
+                child: Text(city, overflow: TextOverflow.ellipsis),
+              ),
+            ),
+          ],
+          onChanged: (value) => setState(() => _city = value ?? ''),
+        ),
+      ),
+    );
+    final locationFilters = compact || isMobilePlatform
+        ? Column(
+            children: [
+              search,
+              const SizedBox(height: 12),
+              if (isMobilePlatform)
+                Row(
+                  children: [
+                    Expanded(child: country),
+                    const SizedBox(width: 12),
+                    Expanded(child: city),
+                  ],
+                )
+              else ...[
+                country,
+                const SizedBox(height: 12),
+                city,
+              ],
+            ],
+          )
         : Row(
             children: [
               Expanded(child: search),
               const SizedBox(width: 16),
-              SizedBox(width: 250, child: country),
+              SizedBox(width: 230, child: country),
+              const SizedBox(width: 16),
+              SizedBox(width: 230, child: city),
             ],
           );
     final reviewCount = _restaurants
-        .where((restaurant) => restaurant.needsReview)
+        .where((restaurant) => !restaurant.isArchived && restaurant.needsReview)
         .length;
+    final sortSelector = InputDecorator(
+      decoration: const InputDecoration(labelText: 'Sort by'),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<RestaurantSortField>(
+          value: _sortField,
+          isDense: true,
+          isExpanded: true,
+          items: RestaurantSortField.values
+              .map(
+                (field) => DropdownMenuItem(
+                  value: field,
+                  child: Text(
+                    field.label,
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
+                ),
+              )
+              .toList(),
+          onChanged: (field) {
+            if (field != null) _selectSort(field);
+          },
+        ),
+      ),
+    );
+    final directionControl = Tooltip(
+      message: _sortField == RestaurantSortField.confidence
+          ? (_sortAscending
+                ? 'Show highest confidence first'
+                : 'Show lowest confidence first')
+          : (_sortAscending ? 'Switch to Z–A' : 'Switch to A–Z'),
+      child: OutlinedButton.icon(
+        onPressed: _toggleSortDirection,
+        icon: Icon(
+          _sortAscending ? Icons.arrow_upward : Icons.arrow_downward,
+          size: 18,
+        ),
+        label: Text(
+          _sortField == RestaurantSortField.confidence
+              ? (_sortAscending ? 'Low–high' : 'High–low')
+              : (_sortAscending ? 'A–Z' : 'Z–A'),
+        ),
+      ),
+    );
+    final sortingControls = Wrap(
+      spacing: 16,
+      runSpacing: 12,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        FilterChip(
+          avatar: const Icon(Icons.flag_outlined, size: 18),
+          label: Text('Needs review only ($reviewCount)'),
+          selected: _needsReviewOnly,
+          onSelected: (selected) => setState(() {
+            _needsReviewOnly = selected;
+            if (selected) {
+              _showArchived = false;
+              _sortField = RestaurantSortField.confidence;
+              _sortAscending = true;
+            }
+          }),
+        ),
+        FilterChip(
+          avatar: const Icon(Icons.inventory_2_outlined, size: 18),
+          label: const Text('Archived'),
+          selected: _showArchived,
+          onSelected: (selected) => setState(() {
+            _showArchived = selected;
+            _needsReviewOnly = false;
+          }),
+        ),
+        SizedBox(width: 230, child: sortSelector),
+        directionControl,
+      ],
+    );
+    final addButton = IconButton.filled(
+      onPressed: _loading ? null : _addRestaurant,
+      tooltip: 'Add restaurant',
+      style: IconButton.styleFrom(
+        backgroundColor: const Color(0xFF269344),
+        foregroundColor: Colors.white,
+      ),
+      icon: const Text(
+        '+',
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: 32,
+          fontWeight: FontWeight.w900,
+          height: 1,
+        ),
+      ),
+    );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         locationFilters,
         const SizedBox(height: 12),
-        Wrap(
-          spacing: 16,
-          runSpacing: 12,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          children: [
-            FilterChip(
-              avatar: const Icon(Icons.flag_outlined, size: 18),
-              label: Text('Needs review only ($reviewCount)'),
-              selected: _needsReviewOnly,
-              onSelected: (selected) =>
-                  setState(() => _needsReviewOnly = selected),
-            ),
-            SizedBox(
-              width: 230,
-              child: InputDecorator(
-                decoration: const InputDecoration(labelText: 'Sort by'),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<RestaurantSortField>(
-                    value: _sortField,
-                    isDense: true,
-                    isExpanded: true,
-                    items: RestaurantSortField.values
-                        .map(
-                          (field) => DropdownMenuItem(
-                            value: field,
-                            child: Text(field.label),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: (field) {
-                      if (field != null) _selectSort(field);
-                    },
-                  ),
-                ),
-              ),
-            ),
-            Tooltip(
-              message: _sortAscending ? 'Switch to Z–A' : 'Switch to A–Z',
-              child: OutlinedButton.icon(
-                onPressed: _toggleSortDirection,
-                icon: Icon(
-                  _sortAscending ? Icons.arrow_upward : Icons.arrow_downward,
-                  size: 18,
-                ),
-                label: Text(_sortAscending ? 'A–Z' : 'Z–A'),
-              ),
-            ),
-          ],
+        LayoutBuilder(
+          builder: (context, constraints) {
+            if (isMobilePlatform) {
+              return Row(
+                children: [
+                  Expanded(child: sortSelector),
+                  const SizedBox(width: 8),
+                  directionControl,
+                  const SizedBox(width: 8),
+                  addButton,
+                ],
+              );
+            }
+            if (constraints.maxWidth < 820) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  sortingControls,
+                  const SizedBox(height: 12),
+                  Align(alignment: Alignment.centerRight, child: addButton),
+                ],
+              );
+            }
+            return Row(
+              children: [
+                Expanded(child: sortingControls),
+                const SizedBox(width: 16),
+                addButton,
+              ],
+            );
+          },
         ),
       ],
     );
@@ -320,7 +532,9 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
         const SizedBox(width: 12),
         Expanded(
           child: Text(
-            _hasLoaded
+            isMobilePlatform
+                ? 'Could not connect to your Mac’s restaurant catalogue. Keep your Mac awake and both devices on the same Wi-Fi, then try Refresh.'
+                : _hasLoaded
                 ? 'Could not refresh. Your previous results are still shown. '
                       'Check the local data service and try again.'
                 : 'Could not load your restaurants. Check that the local data '
@@ -377,10 +591,14 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
               ? _RestaurantRow(
                   key: ValueKey(restaurant.id),
                   restaurant: restaurant,
+                  onSaved: _acceptEdit,
+                  onDeleted: _acceptDelete,
                 )
               : _RestaurantCard(
                   key: ValueKey(restaurant.id),
                   restaurant: restaurant,
+                  onSaved: _acceptEdit,
+                  onDeleted: _acceptDelete,
                 );
         },
       ),
@@ -466,8 +684,14 @@ class _TableHeading extends StatelessWidget {
 }
 
 class _RestaurantName extends StatefulWidget {
-  const _RestaurantName(this.restaurant);
+  const _RestaurantName(
+    this.restaurant, {
+    required this.onSaved,
+    required this.onDeleted,
+  });
   final Restaurant restaurant;
+  final ValueChanged<Restaurant> onSaved;
+  final ValueChanged<int> onDeleted;
 
   @override
   State<_RestaurantName> createState() => _RestaurantNameState();
@@ -475,7 +699,76 @@ class _RestaurantName extends StatefulWidget {
 
 class _RestaurantNameState extends State<_RestaurantName> {
   final _telephoneTooltip = GlobalKey<TooltipState>();
-  final _internetTooltip = GlobalKey<TooltipState>();
+  bool _websiteUnavailable = false;
+  bool _checkingWebsite = false;
+
+  @override
+  void didUpdateWidget(covariant _RestaurantName oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.restaurant.id != widget.restaurant.id ||
+        oldWidget.restaurant.internetLink != widget.restaurant.internetLink) {
+      _websiteUnavailable = false;
+      _checkingWebsite = false;
+    }
+  }
+
+  Future<void> _edit() async {
+    final result = await editRestaurant(context, widget.restaurant);
+    if (!mounted || result == null) return;
+    if (result.deletedId != null) {
+      widget.onDeleted(result.deletedId!);
+    } else if (result.restaurant != null) {
+      widget.onSaved(result.restaurant!);
+    }
+  }
+
+  Future<void> _review() async {
+    final result = await reviewRestaurant(context, widget.restaurant);
+    if (!mounted || result == null) return;
+    if (result.deletedId != null) {
+      widget.onDeleted(result.deletedId!);
+    } else if (result.restaurant != null) {
+      widget.onSaved(result.restaurant!);
+    }
+  }
+
+  Future<void> _openWebsite() async {
+    if (_checkingWebsite) return;
+    final restaurant = widget.restaurant;
+    final raw = restaurant.internetLink ?? '';
+    final uri = websiteUri(raw);
+    if (uri == null) {
+      setState(() => _websiteUnavailable = true);
+      return;
+    }
+    setState(() => _checkingWebsite = true);
+    bool unavailable = false;
+    String? message;
+    try {
+      final opened = await openRestaurantWebsite(uri);
+      unavailable = !opened;
+      if (opened) {
+        unavailable = await checkRestaurantWebsite(restaurant.id) == false;
+      }
+    } on MissingPluginException {
+      message = 'Website support needs an app restart. Stop Flutter and run it again.';
+    } catch (_) {
+      unavailable = true;
+    }
+    if (!mounted ||
+        widget.restaurant.id != restaurant.id ||
+        widget.restaurant.internetLink != raw) {
+      return;
+    }
+    setState(() {
+      _checkingWebsite = false;
+      _websiteUnavailable = unavailable;
+    });
+    if (message != null) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(message)));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -492,40 +785,93 @@ class _RestaurantNameState extends State<_RestaurantName> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _Value(widget.restaurant.name, prominent: true),
-        if (hasTelephone || hasInternetLink)
-          Wrap(
-            spacing: 4,
-            children: [
-              if (hasTelephone)
-                Tooltip(
-                  key: _telephoneTooltip,
-                  message: telephone,
-                  triggerMode: TooltipTriggerMode.manual,
-                  showDuration: const Duration(seconds: 10),
-                  child: IconButton(
-                    icon: const Icon(
-                      Icons.phone_outlined,
-                      semanticLabel: 'Telephone',
+        SelectionArea(
+          child: Text.rich(
+            TextSpan(
+              text: widget.restaurant.name,
+              children: [
+                if (!widget.restaurant.isArchived)
+                  WidgetSpan(
+                    alignment: PlaceholderAlignment.middle,
+                    child: RestaurantReviewIndicator(
+                      restaurant: widget.restaurant,
+                      onReview: _review,
                     ),
-                    onPressed: () =>
-                        _telephoneTooltip.currentState?.ensureTooltipVisible(),
                   ),
-                ),
-              if (hasInternetLink)
-                Tooltip(
-                  key: _internetTooltip,
-                  message: internetLink,
-                  triggerMode: TooltipTriggerMode.manual,
-                  showDuration: const Duration(seconds: 10),
-                  child: IconButton(
-                    icon: const Icon(Icons.language, semanticLabel: 'Website'),
-                    onPressed: () =>
-                        _internetTooltip.currentState?.ensureTooltipVisible(),
-                  ),
-                ),
-            ],
+              ],
+            ),
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              height: 1.5,
+              color: Theme.of(context).colorScheme.onSurface,
+            ),
           ),
+        ),
+        Wrap(
+          spacing: 4,
+          children: [
+            if (hasTelephone)
+              ContactTooltip(
+                tooltipKey: _telephoneTooltip,
+                message: telephone,
+                child: IconButton(
+                  icon: const Icon(
+                    Icons.phone_outlined,
+                    semanticLabel: 'Telephone',
+                  ),
+                  onPressed: () =>
+                      _telephoneTooltip.currentState?.ensureTooltipVisible(),
+                ),
+              ),
+            if (hasInternetLink)
+              ContactTooltip(
+                message:
+                    'Press $internetLink to open the website'
+                    '${_websiteUnavailable ? '\nWebsite unavailable' : ''}',
+                child: IconButton(
+                  icon: Icon(
+                    Icons.language,
+                    color: _websiteUnavailable ? Colors.red : null,
+                    semanticLabel: _websiteUnavailable
+                        ? 'Website unavailable'
+                        : 'Open website',
+                  ),
+                  onPressed: _checkingWebsite ? null : _openWebsite,
+                ),
+              ),
+            ContactTooltip(
+              message: 'Edit restaurant',
+              child: IconButton(
+                icon: const Icon(
+                  Icons.edit_outlined,
+                  semanticLabel: 'Edit restaurant',
+                ),
+                onPressed: _edit,
+              ),
+            ),
+            if (widget.restaurant.isArchived) ...[
+              ContactTooltip(
+                message: 'Review archived restaurant',
+                child: IconButton(
+                  icon: const Icon(
+                    Icons.inventory_2_outlined,
+                    color: Colors.red,
+                    semanticLabel: 'Review archived restaurant',
+                  ),
+                  onPressed: _review,
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: Text(
+                  widget.restaurant.reviewLabel,
+                  style: Theme.of(context).textTheme.labelSmall,
+                ),
+              ),
+            ],
+          ],
+        ),
       ],
     );
   }
@@ -544,15 +890,14 @@ class _RestaurantCityState extends State<_RestaurantCity> {
     String? message;
     try {
       if (!await openRestaurantMap(widget.restaurant)) {
-        message =
-            'Could not open Maps. The address is available in the tooltip.';
+        message = 'Could not open Maps. Please try again.';
       }
     } on MissingPluginException {
       message =
           'Maps support needs an app restart. Stop Flutter and run it again.';
     } catch (error) {
       debugPrint('Map launch failed (${error.runtimeType}).');
-      message = 'Could not open Maps. The address is available in the tooltip.';
+      message = 'Could not open Maps. Please try again.';
     }
     if (!mounted || message == null) return;
     ScaffoldMessenger.of(context)
@@ -561,44 +906,48 @@ class _RestaurantCityState extends State<_RestaurantCity> {
 
   @override
   Widget build(BuildContext context) {
-    final address = widget.restaurant.address?.trim();
-    final hasAddress =
-        address != null &&
-        address.isNotEmpty &&
-        address.toLowerCase() != 'not listed';
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _Value(widget.restaurant.city),
-        if (hasAddress)
-          Tooltip(
-            message: address,
-            triggerMode: TooltipTriggerMode.longPress,
-            showDuration: const Duration(seconds: 10),
-            child: IconButton(
-              icon: const Icon(
-                Icons.location_on_outlined,
-                semanticLabel: 'Open address in Maps',
-              ),
-              onPressed: _openMap,
-            ),
+    final city = widget.restaurant.city?.trim();
+    if (city == null || city.isEmpty || city.toLowerCase() == 'not listed') {
+      return _Value(widget.restaurant.city);
+    }
+    return ContactTooltip(
+      message: 'Click to show map and address',
+      child: TextButton(
+        onPressed: _openMap,
+        style: TextButton.styleFrom(
+          padding: EdgeInsets.zero,
+          minimumSize: const Size(0, 32),
+          alignment: Alignment.centerLeft,
+          textStyle: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w400,
+            height: 1.5,
           ),
-      ],
+        ),
+        child: Text(city, textAlign: TextAlign.left),
+      ),
     );
   }
 }
 
 class _RestaurantRow extends StatelessWidget {
-  const _RestaurantRow({super.key, required this.restaurant});
+  const _RestaurantRow({
+    super.key,
+    required this.restaurant,
+    required this.onSaved,
+    required this.onDeleted,
+  });
   final Restaurant restaurant;
+  final ValueChanged<Restaurant> onSaved;
+  final ValueChanged<int> onDeleted;
 
   @override
   Widget build(BuildContext context) {
     final values = <Widget>[
-      _RestaurantName(restaurant),
+      _RestaurantName(restaurant, onSaved: onSaved, onDeleted: onDeleted),
       _RestaurantCity(restaurant),
       _Value(restaurant.country),
-      _CuisineCell(restaurant),
+      CuisineDetails(restaurant: restaurant),
     ];
     return ColoredBox(
       color: Colors.white,
@@ -620,8 +969,15 @@ class _RestaurantRow extends StatelessWidget {
 }
 
 class _RestaurantCard extends StatelessWidget {
-  const _RestaurantCard({super.key, required this.restaurant});
+  const _RestaurantCard({
+    super.key,
+    required this.restaurant,
+    required this.onSaved,
+    required this.onDeleted,
+  });
   final Restaurant restaurant;
+  final ValueChanged<Restaurant> onSaved;
+  final ValueChanged<int> onDeleted;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -634,7 +990,7 @@ class _RestaurantCard extends StatelessWidget {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _RestaurantName(restaurant),
+        _RestaurantName(restaurant, onSaved: onSaved, onDeleted: onDeleted),
         const SizedBox(height: 16),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -651,7 +1007,11 @@ class _RestaurantCard extends StatelessWidget {
           ],
         ),
         const Divider(height: 28),
-        _Detail('Cuisine', restaurant.cuisine, child: _CuisineCell(restaurant)),
+        _Detail(
+          'Cuisine',
+          restaurant.cuisine,
+          child: CuisineDetails(restaurant: restaurant),
+        ),
       ],
     ),
   );
@@ -678,153 +1038,16 @@ class _Detail extends StatelessWidget {
   );
 }
 
-class _CuisineCell extends StatelessWidget {
-  const _CuisineCell(this.restaurant);
-
-  final Restaurant restaurant;
-
-  @override
-  Widget build(BuildContext context) {
-    final details = _DetailField.values
-        .where((field) => field.hasContent(restaurant))
-        .toList();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _CuisineValue(restaurant),
-        if (details.isNotEmpty) ...[
-          const SizedBox(height: 4),
-          Wrap(
-            spacing: 4,
-            children: details
-                .map((field) => _DetailIcon(restaurant, field: field))
-                .toList(),
-          ),
-        ],
-      ],
-    );
-  }
-}
-
-class _CuisineValue extends StatelessWidget {
-  const _CuisineValue(this.restaurant);
-
-  final Restaurant restaurant;
-
-  @override
-  Widget build(BuildContext context) {
-    final cuisine = restaurant.cuisine;
-    if (cuisine == null) return const _Value(null);
-    final words = cuisine.trim().split(RegExp(r'\s+'));
-    if (words.length <= 3) {
-      return _Value(cuisine);
-    }
-
-    return Tooltip(
-      message: 'View cuisine for ${restaurant.name}',
-      child: TextButton(
-        style: TextButton.styleFrom(
-          alignment: Alignment.centerLeft,
-          padding: EdgeInsets.zero,
-          minimumSize: Size.zero,
-          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          foregroundColor: Theme.of(context).colorScheme.onSurface,
-          textStyle: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w400,
-            height: 1.5,
-          ),
-        ),
-        onPressed: () => _showRestaurantDetail(
-          context,
-          restaurantName: restaurant.name,
-          label: 'Cuisine',
-          content: cuisine,
-        ),
-        // A word joiner keeps the ellipsis attached to the third word on wrap.
-        child: Text('${words.take(3).join(' ')}\u2060…'),
-      ),
-    );
-  }
-}
-
-enum _DetailField {
-  specialDish('Special dish', '🍽️'),
-  notes('Notes', '📝');
-
-  const _DetailField(this.label, this.icon);
-
-  final String label;
-  final String icon;
-
-  String? valueOf(Restaurant restaurant) => switch (this) {
-    _DetailField.specialDish => restaurant.specialDish,
-    _DetailField.notes => restaurant.notes,
-  };
-
-  bool hasContent(Restaurant restaurant) {
-    final value = valueOf(restaurant)?.trim().toLowerCase();
-    return value != null && value.isNotEmpty && value != 'not listed';
-  }
-}
-
-class _DetailIcon extends StatelessWidget {
-  const _DetailIcon(this.restaurant, {required this.field});
-
-  final Restaurant restaurant;
-  final _DetailField field;
-
-  @override
-  Widget build(BuildContext context) {
-    final content = field.valueOf(restaurant);
-    if (!field.hasContent(restaurant)) {
-      return const SizedBox.shrink();
-    }
-
-    return IconButton(
-      tooltip: 'View ${field.label.toLowerCase()} for ${restaurant.name}',
-      icon: Text(field.icon, style: const TextStyle(fontSize: 24)),
-      onPressed: () => _showRestaurantDetail(
-        context,
-        restaurantName: restaurant.name,
-        label: field.label,
-        content: content!,
-      ),
-    );
-  }
-}
-
-Future<void> _showRestaurantDetail(
-  BuildContext context, {
-  required String restaurantName,
-  required String label,
-  required String content,
-}) => showDialog<void>(
-  context: context,
-  builder: (dialogContext) => AlertDialog(
-    scrollable: true,
-    title: Text('$label — $restaurantName'),
-    content: SelectableText(content),
-    actions: [
-      TextButton(
-        onPressed: () => Navigator.of(dialogContext).pop(),
-        child: const Text('Close'),
-      ),
-    ],
-  ),
-);
-
 class _Value extends StatelessWidget {
-  const _Value(this.value, {this.prominent = false});
+  const _Value(this.value);
   final String? value;
-  final bool prominent;
 
   @override
   Widget build(BuildContext context) => SelectableText(
     value ?? 'Not listed',
     style: TextStyle(
-      fontSize: prominent ? 16 : 14,
-      fontWeight: prominent ? FontWeight.w600 : FontWeight.w400,
+      fontSize: 14,
+      fontWeight: FontWeight.w400,
       height: 1.5,
       color: value == null
           ? Theme.of(context).colorScheme.onSurfaceVariant

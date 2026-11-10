@@ -1,6 +1,6 @@
 # BeneEde
 
-Your world of good food.
+Your world of good eats.
 
 A SQLite restaurant collection imported from `data/restaurants.txt` (the source
 file is `.txt`, not `.tex`). The original QJotter export is left unchanged.
@@ -48,8 +48,19 @@ flutter run -d chrome
 ```
 
 Use `flutter run -d macos` for a native Mac window. The interface reads live
-SQLite data through the read-only local service; it needs no API key. See
+SQLite data through the local service; it needs no API key. See
 [`flutter_app/README.md`](flutter_app/README.md) for configuration and manual checks.
+
+Add/Edit city fields offer offline GeoNames completion, with country and region.
+Build/refresh the separate local city index with:
+
+```zsh
+.venv/bin/python city_index.py --download
+```
+
+See [City suggestions](docs/CITY_AUTOCOMPLETE.md) for coverage and attribution,
+and [Review and archive](docs/REVIEWING_RESTAURANTS.md) for recording Passed/Failed
+decisions, inspecting source evidence and restoring archived restaurants.
 
 ## Import and research
 
@@ -77,7 +88,9 @@ SQLite data through the read-only local service; it needs no API key. See
 .venv/bin/python main.py resume --refresh-completed
 ```
 
-`data/restaurants.sqlite3` preserves duplicates as separate occurrences. Use
+`data/restaurants.sqlite3` stores active restaurant records. Reviewed duplicates
+are consolidated with full original records preserved in `record_history`; see
+[duplicate consolidation](docs/DUPLICATE_CONSOLIDATION.md). Use
 `status` to see current progress: it changes as imports and research complete.
 Run `import` with a working key before `enrich`; locally parsed seeds are not
 eligible for research until API extraction has refined them. `resume` performs
@@ -150,8 +163,9 @@ The database also contains:
   identity confidence, enrichment status, model names and timestamps.
 - Field-level JSON `evidence` and a link to the original source line.
 
-`export` writes UTF-8 CSV with a header and one row per restaurant occurrence,
-including all these fields, source file, line number and original text. Unknown
+`export` writes UTF-8 CSV with a header and one row per active restaurant,
+including all these fields, source file, line number, original text and
+`record_history` with the complete source records of consolidated duplicates. Unknown
 values become empty CSV cells; JSON metadata remains JSON in its cells. Commas,
 quotes, newlines and accents are preserved. Exporting again replaces the CSV,
 but output paths matching the original source or database are rejected. When
@@ -190,8 +204,9 @@ Missing core fields, low identity confidence (below 0.85), uncertain status, clo
 ambiguity and invalid links trigger review. Duplicate detection compares names
 and locations after removing accents, punctuation and case. Conflicting known
 countries, regions or street addresses exclude separate branches from duplicate
-candidates. It does not merge
-records or resolve spelling variants automatically. Read the source and evidence
+candidates. The reviewed consolidation workflow also handles confirmed spelling,
+country and address variants; it preserves conflicts and the complete originals
+before deleting redundant rows. The detector does not merge records automatically. Read the source and evidence
 before resolving a review flag. Ratings survive enrichment and repeated imports.
 API extraction refuses to replace offline seeds that already have a nonzero
 rating or research results.
@@ -217,3 +232,22 @@ Additional regression cases cover all the supplied sample formats, listed and
 unsupported telephone numbers, optional missing phone numbers, note/ranking
 preservation, new-column migration, branch handling and CSV round trips. These
 are mocked tests; they do not prove live API extraction or web research quality.
+
+## Editing restaurants
+
+An edit icon follows the website icon beneath each restaurant name, including
+records without contact details. It opens a compact, scrollable modal. Save updates
+the database and the displayed record; Cancel leaves it unchanged. Main details
+are shown directly, with region, venue type, rankings, rating and venue status
+under More details. See [editing and manual verification](docs/EDITING_RECORDS.md).
+
+## Adding restaurants
+
+Use **Add restaurant** on the Sort/A–Z row. Enter restaurant name and city, or an internet address on its own.
+With only those fields, the form asks whether to research missing details. No
+adds manually; Yes uses the configured OpenAI API and presents the found branches
+for review before saving. A supplied website is read first for missing details
+and branches. Structured website data works without AI; interpreting unstructured
+page text uses the API when configured. All distinct discovered branches can be
+added together, while known existing branches are reported and left unchanged.
+See [adding restaurants](docs/ADDING_RESTAURANTS.md) for setup and manual checks.

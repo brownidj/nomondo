@@ -1,6 +1,6 @@
 # Running BeneEde in Chrome, macOS and iOS
 
-Updated: 10 November 2026.
+Updated: 11 November 2026.
 
 BeneEde has two parts: a Python service that reads the restaurant database, and
 a Flutter interface that displays it. Start the service first and keep it running
@@ -12,12 +12,12 @@ while you use the interface. Browsing does not require an OpenAI API key.
 | --- | --- |
 | Chrome on this Mac | Web target exists; use the launch commands below. |
 | Native macOS | macOS target exists; use the launch commands below. |
-| iOS simulator | No `flutter_app/ios/` directory yet. Complete the preparation section before attempting to run. |
-| Physical iPhone or iPad | Needs an iOS target, signing and a data-service networking change. The current localhost service cannot be reached from a separate device. |
+| iOS simulator | iOS target now exists. Use the simulator commands; no target generation needed. |
+| Physical iPhone or iPad | App launch confirmed by the user. Use the paired Mac service/mobile launcher below for catalogue access. |
 
 These instructions were checked against the current source and command-line
 help. No platform builds or app launches were performed when writing this guide.
-The iOS instructions describe preparation that has not yet been applied.
+The iOS target has since been generated. The paired mobile connection workflow below supersedes the earlier localhost-only device limitation.
 
 ## 1. Open the project and check your tools
 
@@ -212,43 +212,60 @@ the restaurant list loads; native iOS behavior has not yet been checked here.
 
 ## 6. Running on a real iPhone or iPad
 
-**The current project is not ready for this yet.** Installing the app alone
-does not give the phone access to the restaurant data: `127.0.0.1` on an iPhone
-means the iPhone itself, not this Mac.
-
-After generating the iOS target, the remaining work is:
-
-1. Configure a service endpoint reachable by the phone, such as an HTTPS endpoint
-   or a deliberately configured LAN development endpoint. The existing Python
-   server is hard-coded to `127.0.0.1` and has **no `--host` option**. A LAN option
-   requires a code change; changing `RESTAURANT_API_URL` alone is insufficient.
-2. For a LAN endpoint, keep the Mac and phone on a network where they can reach
-   each other, allow the service through the Mac firewall, and add
-   `NSLocalNetworkUsageDescription` to the iOS `Info.plist`. Use wording such as
-   “BeneEde connects to your Mac to load your restaurant collection.” Configure
-   the local HTTP transport policy as needed, or use HTTPS. Apple explains the
-   permission in [Understanding local network privacy](https://developer.apple.com/documentation/technotes/tn3179-understanding-local-network-privacy).
-3. Open `ios/Runner.xcworkspace` in Xcode, select the **Runner** target and set
-   **Signing & Capabilities** to your development team. Check the bundle ID is
-   unique to this application. Connect and unlock the phone, trust the Mac and
-   enable Developer Mode when prompted. Follow the official
-   [iOS device setup instructions](https://docs.flutter.dev/platform-integration/ios/setup).
-4. Run `flutter devices` and use the physical device's ID.
-
-Only after the service is reachable, launch from `flutter_app` using the actual
-device ID and actual service address:
+A physical phone cannot use the Mac's localhost: 127.0.0.1 on the phone means
+that phone. The paired launcher configures the Mac's .local hostname instead.
+From the project root (one directory above flutter_app):
 
 ```zsh
-flutter run -d IPHONE_DEVICE_ID --dart-define=RESTAURANT_API_URL=https://YOUR_SERVICE_HOST
+./scripts/run_mobile.zsh
 ```
 
-`IPHONE_DEVICE_ID` and `YOUR_SERVICE_HOST` are placeholders. The URL must point
-to a running service implementing `/api/restaurants`; omit that suffix from
-the define because the app adds it. For a configured LAN server, use its actual
-scheme, Mac address and port instead. This command does not create or deploy
-that service. The API address is compiled into the app; relaunch/rebuild after
-changing it. A USB connection for installing the app does not by itself expose
-the Python service to the phone.
+Choose the iPhone if Flutter offers multiple devices. You may pass -d DEVICE_ID
+to the launcher. It defaults to a release installation, which can reopen from
+the iPhone home screen without Flutter's debugger. Pass --profile or --debug
+explicitly for development when needed. Keep the Mac awake and both devices on the same private Wi-Fi.
+Allow Local Network for BeneEde (currently displayed as Beneede App on iOS) when
+asked. If already denied, enable it in Settings → Privacy & Security → Local
+Network. Allow the Mac's local-network/incoming-connection prompt if shown.
+
+The launcher prepares a persistent random pairing token in ignored,
+owner-readable data/mobile_connection.json, starts the catalogue service on
+port 8766 using --lan, waits for its local health/pairing fingerprint, prepares
+iOS build output, and runs Flutter with --dart-define-from-file pointing at that
+private configuration. It does not print the token. It uses the Mac's local
+hostname, so ordinary DHCP address changes do not require updating an IP address.
+Changing the host/token requires another launch/build with that configuration.
+
+The service stays running after Flutter exits; its log is
+data/logs/mobile_service.log. The existing localhost desktop service on 8765 can
+continue using the same catalogue. LAN requests require the pairing token and a
+private source address; loopback desktop use remains available. Do not publish
+this development LAN service on the internet. Pairing is shared access to this
+one catalogue, not separate user accounts or a public deployment.
+
+Manual add/edit/review/archive/restore, city completion and website availability
+checks use the paired endpoint. Remote AI research requests are rejected even
+when a server API key is configured. API credentials are never included in the
+phone app; the pairing token is a separate catalogue-access secret.
+
+NSLocalNetworkUsageDescription and NSAllowsLocalNetworking are present in the iOS
+source plist for the .local HTTP service. Flutter supplies the debug-only VM
+Bonjour entry automatically; the built debug plist was inspected and already
+contained it. The debugger timeout and catalogue connectivity are different
+connections. See [Flutter iOS debugging](https://docs.flutter.dev/platform-integration/ios/ios-debugging).
+
+To restart only the paired service manually:
+
+```zsh
+.venv/bin/python restaurant_server.py --lan
+```
+
+A plain flutter run without the private defines defaults to localhost and is
+therefore unsuitable for a physical phone's catalogue connection. Use the paired
+launcher when rebuilding/reinstalling the mobile app. The desktop workflow is
+unchanged. First physical-device deployment still requires Xcode signing,
+trusting/unlocking the phone and Developer Mode as described by
+[Flutter's device setup guide](https://docs.flutter.dev/platform-integration/ios/setup).
 
 ## Stop, restart and troubleshoot
 
@@ -283,7 +300,7 @@ flutter run -d chrome --dart-define=RESTAURANT_API_URL=http://127.0.0.1:8766
 
 Replace `chrome` with `macos` or the prepared simulator ID for those platforms.
 For another database, add `--db '/absolute/path/restaurants.sqlite3'` to the
-Python service command. The service's interface remains read-only.
+Python service command. Browsing and website checks are read-only; explicit saves from the edit modal update the database and retain edit history.
 
 ### Automatic port recovery
 

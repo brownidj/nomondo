@@ -5,10 +5,9 @@ For the full launch guide, including iOS preparation, see
 
 Flutter interface for `../data/restaurants.sqlite3`, targeting web and native
 macOS. Its columns are restaurant name, city, country and cuisine. Phone and
-website icons sit together beneath each restaurant name. Special dish and notes icons appear on a second line beneath
-the cuisine preview, with their full text available in dialogs. Search covers
+website icons sit together beneath each restaurant name. Clicking cuisine opens its full text together with special dishes and notes in one dialog. Search covers
 all these fields, including the underlying special dish and notes text;
-country and **Needs review only** filters and a
+country, city and **Needs review only** filters and a
 refresh button are included. The review filter uses the database's `needs_review`
 flag and combines with search and country selection. Its count shows all flagged
 entries in the collection; the result count reflects the combined filters.
@@ -18,30 +17,43 @@ smaller windows show restaurant cards. Missing values display as “Not listed�
 ## Cuisine previews
 
 Cuisine values of more than three words show the first three words followed by
-a clickable **…**. Press the ellipsis to open a scrollable dialog with the full,
-selectable cuisine text and the restaurant name. Close dismisses the dialog.
+a clickable **…**. Press cuisine or the ellipsis to open a scrollable dialog with
+the full cuisine, special dishes and notes, labelled with the restaurant name.
+Close dismisses the dialog.
 The ellipsis flows inline with the preview and stays attached to its final word
 when it wraps. The whole preview is clickable and keyboard accessible.
 Values of three words or fewer remain fully visible; missing values show
 “Not listed”. This applies to both desktop rows and compact cards. Searching
 and sorting continue to use the complete cuisine value.
 
-## Special dish and notes icons
+## Combined cuisine details
 
-Special dishes show **🍽️** and notes show **📝** when their fields contain
-content. The icons sit together on a second line inside Cuisine; they no longer
-have separate columns or card sections. Click an icon to open the full,
-selectable text in a scrollable dialog labelled with the field and restaurant
-name. Both table rows and compact cards use this behavior. Null, blank and
-“not listed” values have no icon; placeholder matching ignores case and
-surrounding whitespace. No second line is reserved when both icons are absent.
+Every cuisine value, including short values and Not listed, is clickable. Its
+hover/long-press tooltip says "Click to see cuisine, special dishes and notes".
+The modal shows full selectable cuisine first, then 🍽️ Special dishes and their
+content, then 📝 Notes and their content. Null, blank and Not listed dish/note
+fields are omitted. Icons appear only within this modal, with no second row or
+separate dish/note buttons in table rows or compact cards. Missing cuisine can
+still be clicked to access any saved notes/dishes. Search/sort use the full values.
+
+Updated 10 November 2026: created cuisine_details.dart and cuisine_details_test.dart;
+modified restaurant_list_page.dart and this document. No removed files or data
+changes. Interaction regressions cover short/missing cuisine, combined content,
+icon placement, omitted placeholders and Close. Dart formatting and whitespace
+checks passed; tests/app launches/builds were not run per policy. Implementation
+complete; manual verification pending; phase not applicable. David: reload
+Flutter, hover/long-press short and long cuisine, click each, verify section order
+and complete content, test missing fields and long scrolling notes, and Close.
+Optional: flutter test test/cuisine_details_test.dart from flutter_app.
+Suggested commit: Combine cuisine dishes and notes in one details modal.
 
 ## Contact details
 
-Press the phone or website icon to show its telephone number or internet address
-in a tooltip. Telephone numbers use international format, including country codes
+Press the phone icon to show its number; press the website icon to open its page.
+Hover or long-press the website icon to show its address. A failed launch or a
+failed reachability check turns the website icon red. Telephone numbers use international format, including country codes
 and extensions. Missing or “Not listed” contact values have no icon. These fields
-are included in the read-only service response and search; no research is
+are included in the service response and search; no research is
 triggered by displaying them.
 
 After updating from the earlier interface, restart the Python service to load
@@ -109,11 +121,11 @@ and then the app to verify:
 - Phone and website icons appear beneath each name in table and card views;
   pressing each shows the correct contact value in a tooltip. Missing/Not listed
   contacts have no icon. There are no separate contact columns or card fields.
-- Populated special dish and notes icons sit together beneath Cuisine and open
-  the correct full content. Their old columns/card sections are absent.
-- Missing special dish/notes fields have no icon or empty second-line spacer.
+- Cuisine opens one modal with full cuisine, then special dishes and notes with
+  their icons/content. No separate icons appear in list rows or cards.
+- Missing dish/notes fields have no modal section or empty list-row spacer.
 - Search finds matches in names, locations, cuisine, dishes, notes and contacts.
-- Country filtering and clearing filters work together.
+- Country and city filtering and clearing filters work together.
 - Each of the four sort fields works in both directions; check the heading
   controls on a wide window and the Sort by control on a narrow window.
 - Missing values stay last in both directions; filtering and refresh preserve
@@ -136,27 +148,109 @@ Noto Sans, CJK, Thai and monochrome emoji fonts are bundled and configured as
 fallbacks. See [font assets and manual checks](assets/fonts/README.md). After
 adding/updating fonts, stop Flutter and start it again to rebuild its asset bundle.
 
-## Address tooltip
+## City map link
 
-When an address is listed, a location-pin icon appears beneath the city name
-in table rows and compact cards. Press it to open the restaurant in Maps;
-hover on desktop or long-press on touch devices to display the address tooltip. Null, empty and “Not listed” addresses have no icon. Addresses are also
-searchable and are included in the local service response.
+The city name is clickable in table rows and compact cards. Hover or long-press
+shows exactly "Click to show map and address". Clicking/tapping opens the venue
+in Maps with its saved address; no location icon or separate address display is
+shown. If the address is missing, the map searches by name, city and country.
+A missing city remains plain "Not listed". Addresses remain searchable and are
+included in the local service response.
 
-For this change, the Python service, restaurant model and list widgets were
-updated. No tests were added or run; no Flutter analysis, UI launch or platform
-build was run. Dart formatting, Python syntax and whitespace checks were used.
-Manually verify listed/missing addresses in wide and narrow views after reloading
-Flutter. Record date, tester, platform and results. No commit was made; phase is
-not applicable. Suggested commit: `Show address tooltip beneath the city name`.
+Updated 10 November 2026: restaurant_list_page.dart, restaurant_maps.dart and this
+document. No new/removed files, database changes or tests added/run. Dart format
+and whitespace checks passed; no Flutter analysis, app launch or platform build.
+Implementation complete; manual verification pending; phase not applicable.
+David: reload Flutter, verify the exact tooltip on desktop/touch, click a city
+with an address and one without, and inspect the destination in Maps. Check wide
+table and narrow cards. Record date/platform/results. Suggested commit:
+Open restaurant maps from city names.
 
 ## Opening maps
 
-The address pin opens Apple Maps in native macOS/iOS apps (with an Apple Maps
+The city link opens Apple Maps in native macOS/iOS apps (with an Apple Maps
 web fallback), or Google Maps in a new browser tab on web and externally on
 other native platforms. Name, full address, city and country identify the venue.
-No map API key or location permission is required. Address tooltips remain
-available on hover or long-press. See [implementation and manual checks](../docs/MAP_LINKS.md).
+No map API key or location permission is required. The city tooltip explains the
+action. See [implementation and manual checks](../docs/MAP_LINKS.md), with the
+current city-link interaction replacing the earlier address-pin control.
 
 After adding `url_launcher`, fully stop and restart Flutter so its native plugin
 is registered; hot reload alone is insufficient.
+
+Website checks run only after a press, through the local Python service; they do
+not check hundreds of websites on startup. A red icon means unavailable at the
+last check. Login/anti-bot responses and checker failures are inconclusive and
+leave the icon neutral. Reloading the list may clear session-only check results.
+A server check cannot confirm the final rendering of a separate browser tab.
+Restart the Python service for the website-status endpoint, then reload Flutter.
+See [website checks](../docs/WEBSITE_LINKS.md) for manual verification.
+
+## Cities filter — 10 November 2026
+
+Filter order is Search, Countries, Cities. Cities come from the loaded catalogue,
+are deduplicated without case differences and sorted alphabetically. Blank and
+Not listed locations are excluded. Selecting a country restricts the city options;
+a city outside the new country is cleared. All cities removes just the city filter.
+Search, country, city, review filtering and sorting combine. Refresh retains valid
+selections and clears options no longer in the catalogue. Filters stack vertically
+on smaller windows to keep search and dropdowns usable.
+
+Modified the restaurant list screen and this document. No files/tests were created
+or removed. Dart formatting and whitespace checks passed; no tests, app launch,
+Flutter analysis or platform build was run under the manual verification policy.
+Reload Flutter and check a city alone, country then city, changing countries,
+All cities, combined search/review filters and narrow-window layout. Record date,
+tester, platform and results. No commit was made; phase not applicable. Suggested
+commit: `Add catalogue-based city filtering beside countries`.
+
+## macOS contact tooltips — 10 November 2026
+
+Phone, website and address tooltips now use a shared ContactTooltip wrapper with
+explicit mouse enter/movement handling after 300 ms, touch long-press, and a dark
+background with readable white text. Phone clicks still explicitly show the
+number; website/map clicks still open their destinations. Hover timers are
+cancelled when the pointer leaves or the widget is disposed. Exact native failure
+cause is not confirmed; default Flutter hover handling is documented as supported
+on macOS, so this is an explicit handling/styling change rather than an assertion
+that manual trigger mode inherently disables hover.
+
+Created `lib/widgets/contact_tooltip.dart` and `test/contact_tooltip_test.dart`;
+modified the list widget and this document. Dart formatting and whitespace checks
+passed. Widget tests cover macOS hover, phone press and website action dispatch,
+but were not run; no app launch, Flutter analysis or platform build was run under
+the project manual verification policy.
+
+Restart/reload the native macOS app and hover over each contact icon, then check
+a phone press and website/map actions. Confirm tooltip text is readable near
+window edges, and moving away dismisses it. Record date, tester, platform and
+results. Run `flutter test test/contact_tooltip_test.dart` manually from
+`flutter_app` for the focused tests. Runtime acceptance remains outstanding.
+No commit was made; phase not applicable. Suggested commit:
+`Make contact tooltips explicitly respond to desktop hover`.
+
+## Special-dish and notes tooltips
+
+These icons now show their actual full field content on hover/long-press, using
+the same tooltip styling and timing as contact details. Pressing still opens the
+full-content dialog. Blank/Not listed values remain hidden, in both table/card
+views. Only the list widget and this documentation changed; no data changed.
+Dart formatting and whitespace checks passed. No tests were added or run, and no
+app launch, Flutter analysis or platform build was performed. Reload Flutter and
+manually hover both icons, then confirm their dialogs still open. Phase: not
+applicable. Suggested commit: `Show dish and notes content directly in tooltips`.
+
+## Add restaurant
+
+The right-aligned Add restaurant button opens the same compact form layout as
+Edit. Enter name and city, or an internet address on its own. If only those are supplied, choose Yes to
+research missing information or No to add manually. Providing a website starts
+website lookup. Review lookup results, including all discovered city branches,
+then press Add again to save the batch. Blank fields remain blank when no reliable
+source is found; existing catalogue branches are not duplicated or overwritten.
+
+The Python service needs OPENAI_API_KEY for name/city web research or optional
+interpretation of unstructured website text. Website JSON-LD extraction and
+manual entry do not require AI. API usage may incur charges. The key stays in the
+service environment. Restart the Python service and reload Flutter after updating.
+See [implementation and manual verification](../docs/ADDING_RESTAURANTS.md).

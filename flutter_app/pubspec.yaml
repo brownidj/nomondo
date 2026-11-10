@@ -21,6 +21,7 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
+    - assets/beneede-icon.png
     - assets/fonts/LICENSE-NotoSans.txt
     - assets/fonts/LICENSE-NotoCJK.txt
     - assets/fonts/LICENSE-NotoEmoji.txt
