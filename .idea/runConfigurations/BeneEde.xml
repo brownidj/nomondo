@@ -1,6 +1,6 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="Nomondo" type="PythonConfigurationType" factoryName="Python">
-    <module name="nomondo" />
+  <configuration default="false" name="BeneEde" type="PythonConfigurationType" factoryName="Python">
+    <module name="beneede" />
     <option name="ENV_FILES" value="" />
     <option name="PARENT_ENVS" value="true" />
     <envs>

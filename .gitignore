@@ -50,7 +50,7 @@ key.properties
 .idea/dbnavigator.xml
 *.iws
 
-# Nomondo runtime data; keep data/restaurants.txt and documentation
+# BeneEde runtime data; keep data/restaurants.txt and documentation
 /data/*.sqlite3
 /data/restaurants.csv
 /data/backups/

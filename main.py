@@ -1,6 +1,6 @@
-"""Nomondo command-line entry point."""
+"""BeneEde command-line entry point."""
 
-from nomondo import main
+from beneede import main
 
 
 if __name__ == "__main__":

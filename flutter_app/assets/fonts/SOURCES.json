@@ -1,0 +1,56 @@
+[
+  {
+    "file": "NotoSans-Regular.ttf",
+    "url": "https://raw.githubusercontent.com/notofonts/noto-fonts/main/hinted/ttf/NotoSans/NotoSans-Regular.ttf",
+    "sha256": "b85c38ecea8a7cfb39c24e395a4007474fa5a4fc864f6ee33309eb4948d232d5",
+    "bytes": 569208
+  },
+  {
+    "file": "NotoSans-SemiBold.ttf",
+    "url": "https://raw.githubusercontent.com/notofonts/noto-fonts/main/hinted/ttf/NotoSans/NotoSans-SemiBold.ttf",
+    "sha256": "87a8b90ece1e89746b544e4e086f85a3710e41485a8078f9be874837dfad45d5",
+    "bytes": 572924
+  },
+  {
+    "file": "NotoSans-Bold.ttf",
+    "url": "https://raw.githubusercontent.com/notofonts/noto-fonts/main/hinted/ttf/NotoSans/NotoSans-Bold.ttf",
+    "sha256": "c976e4b1b99edc88775377fcc21692ca4bfa46b6d6ca6522bfda505b28ff9d6a",
+    "bytes": 575740
+  },
+  {
+    "file": "NotoSansThai-Regular.ttf",
+    "url": "https://raw.githubusercontent.com/notofonts/noto-fonts/main/hinted/ttf/NotoSansThai/NotoSansThai-Regular.ttf",
+    "sha256": "404ddfb5ed0aaa6b6ec8a85700d682978992062d67da93903967b56cbd9a4acc",
+    "bytes": 37752
+  },
+  {
+    "file": "NotoSansCJKjp-Regular.otf",
+    "url": "https://raw.githubusercontent.com/notofonts/noto-cjk/main/Sans/OTF/Japanese/NotoSansCJKjp-Regular.otf",
+    "sha256": "68a3fc98800b2a27b371f2fb79991daf3633bd89309d4ffaa6946fd587f375b5",
+    "bytes": 16467736
+  },
+  {
+    "file": "NotoEmoji.ttf",
+    "url": "https://raw.githubusercontent.com/google/fonts/main/ofl/notoemoji/NotoEmoji%5Bwght%5D.ttf",
+    "sha256": "de6c18832938afc99caf132b39d6a30a19bac7f2e812e28db2535b4608d27551",
+    "bytes": 1982596
+  },
+  {
+    "file": "LICENSE-NotoSans.txt",
+    "url": "https://raw.githubusercontent.com/notofonts/noto-fonts/main/LICENSE",
+    "sha256": "0dab92d0544f7b233403f14b84a663bdbfa746982eda629e7f4f9ffe1b036feb",
+    "bytes": 4377
+  },
+  {
+    "file": "LICENSE-NotoCJK.txt",
+    "url": "https://raw.githubusercontent.com/notofonts/noto-cjk/main/Sans/LICENSE",
+    "sha256": "6a73f9541c2de74158c0e7cf6b0a58ef774f5a780bf191f2d7ec9cc53efe2bf2",
+    "bytes": 4301
+  },
+  {
+    "file": "LICENSE-NotoEmoji.txt",
+    "url": "https://raw.githubusercontent.com/google/fonts/main/ofl/notoemoji/OFL.txt",
+    "sha256": "500bb1ccf43df7bbb522112f9133a52b16e1c35e809632f5d8609b179152de5b",
+    "bytes": 4330
+  }
+]

@@ -1,9 +1,12 @@
-# Nomondo
+# BeneEde
 
 Your world of good food.
 
 A SQLite restaurant collection imported from `data/restaurants.txt` (the source
 file is `.txt`, not `.tex`). The original QJotter export is left unchanged.
+
+Rename details, compatibility paths and reopening steps are recorded in
+[the BeneEde rename notes](docs/BENEEDE_RENAME.md).
 
 ## Setup
 
@@ -19,11 +22,14 @@ it does not load `.env` automatically. Never commit your key.
 
 ## Flutter interface
 
-See [Running Nomondo](docs/RUNNING_THE_APP.md) for Chrome and macOS launch commands,
+See [Running BeneEde](docs/RUNNING_THE_APP.md) for Chrome and macOS launch commands,
 iOS preparation, the two-terminal workflow and troubleshooting.
 
 The Dart/Flutter application in `flutter_app` lists restaurant name, city, country,
-cuisine, special dish and notes. It includes search across those fields, country
+and cuisine. Phone and website icons beneath each restaurant name show
+the international-format number and internet address in tooltips when pressed. Special dish and notes icons sit beneath the
+cuisine preview and open dialogs with their full content. It includes search
+across the displayed fields and the dish/notes content, country
 filtering, a **Needs review only** filter and refresh, with desktop columns and
 compact cards on smaller windows.
 

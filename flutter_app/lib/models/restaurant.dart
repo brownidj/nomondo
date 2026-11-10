@@ -3,20 +3,26 @@ class Restaurant {
     required this.id,
     required this.name,
     this.city,
+    this.address,
     this.country,
     this.cuisine,
     this.specialDish,
     this.notes,
+    this.telephone,
+    this.internetLink,
     this.needsReview = false,
   });
 
   final int id;
   final String name;
   final String? city;
+  final String? address;
   final String? country;
   final String? cuisine;
   final String? specialDish;
   final String? notes;
+  final String? telephone;
+  final String? internetLink;
   final bool needsReview;
 
   factory Restaurant.fromJson(Map<String, dynamic> json) {
@@ -39,16 +45,29 @@ class Restaurant {
       id: id,
       name: text('restaurant_name') ?? 'Unnamed restaurant',
       city: text('city'),
+      address: text('address'),
       country: text('country'),
       cuisine: text('cuisine'),
       specialDish: text('special_dish'),
       notes: text('notes'),
+      telephone: text('telephone'),
+      internetLink: text('internet_link'),
       needsReview: review == true || review == 1,
     );
   }
 
   bool matches(String query) =>
-      [name, city, country, cuisine, specialDish, notes]
-          .whereType<String>()
-          .any((value) => value.toLowerCase().contains(query.toLowerCase()));
+      [
+        name,
+        city,
+        address,
+        country,
+        cuisine,
+        specialDish,
+        notes,
+        telephone,
+        internetLink,
+      ].whereType<String>().any(
+        (value) => value.toLowerCase().contains(query.toLowerCase()),
+      );
 }

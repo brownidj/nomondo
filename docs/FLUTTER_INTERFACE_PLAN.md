@@ -81,3 +81,72 @@ the service was restarted and Flutter hot-restarted. The visible Chrome app's
 review-only selection displayed 202 of 490 restaurants, matching SQLite and the
 API. Left the filter enabled for review. No new automated tests or Flutter analysis
 were run for this change.
+
+## Cuisine previews — 10 November 2026
+
+Goal and scope: shorten cuisine values longer than three whitespace-separated
+words in both table rows and compact cards. Show the first three words and a
+clickable ellipsis. Reuse a single cuisine widget across both layouts.
+
+Acceptance: values of zero to three words keep their existing display; longer
+values show three words plus **…**. Activating the ellipsis opens a scrollable
+modal containing the complete selectable cuisine text and restaurant name.
+Close dismisses it. Search and sorting continue to use the original full value.
+The preview and ellipsis share one text layout and baseline, with no separate
+icon-button padding. A word joiner prevents the ellipsis wrapping onto a line by
+itself. The whole preview opens the dialog using pointer or keyboard activation.
+
+Implementation complete; manual verification pending. Check exactly three words,
+four or more words, repeated spaces/newlines and missing cuisine in wide and
+narrow layouts. No tests added or run, Flutter analysis, builds or app launches.
+Also check that ellipses follow the third word at narrow column widths and
+increased text sizes, and that keyboard focus can activate the preview.
+Formatting and diff whitespace checks are the only automated checks for this
+change, following the project's manual-verification policy.
+
+Suggested commit: `Show cuisine previews with an ellipsis detail dialog`.
+
+## Special dish and notes icons — 10 November 2026
+
+Goal and scope: replace populated special dish and notes display values with
+distinct clickable icons (🍽️ and 📝) in both rows and cards. Reuse the cuisine
+dialog presentation for the complete selectable content.
+
+Acceptance: null, blank and case-insensitive, trimmed “not listed” values have
+no icon and show “Not listed”. Populated fields show the appropriate icon.
+Activating it by pointer or keyboard opens the correct full content, field label
+and restaurant name. Close dismisses the dialog. Cuisine previews and searching
+the complete special dish and notes text continue to work.
+
+Implementation complete; manual verification pending. Check populated, missing,
+blank and mixed-case placeholder values in wide and narrow layouts, opening and
+closing each type of dialog. No tests added or run, analysis, builds or app
+launches. Dart formatting and diff whitespace checks only.
+
+Suggested commit: `Show detail icons for populated special dishes and notes`.
+
+## Cuisine detail row and contacts — 10 November 2026
+
+Goal: place special dish and notes icons on a second line within Cuisine and
+replace their separate columns with Tel and Internet address. Apply the same
+grouping to compact cards.
+
+Scope and tasks: reuse the existing preview and detail dialogs; omit absent
+icons and unused spacing; expose the stored `telephone` and `internet_link`
+through the read-only endpoint and Dart model; include contact text in search.
+The earlier six-field layout and separate detail sections are superseded.
+
+Acceptance: six desktop columns show name, city, country, cuisine, Tel and
+Internet address. Available dish/notes icons share a line beneath cuisine and
+open their own full content. Neither icon appears for null, blank or trimmed,
+case-insensitive “not listed”. No second line is reserved when both are absent.
+Contact fields show their stored text or “Not listed”; telephone formatting is
+preserved. Cuisine sorting, truncation and full-content dialogs still work.
+
+Implementation complete; manual verification pending. No tests added or run,
+Flutter analysis, app launches or builds. Checks: Dart formatting, Python AST
+parsing and diff whitespace. Restart the Python service before checking contacts
+and hot-restart Flutter. Verify both wide rows and compact cards, absent/present
+icon combinations, contact values, search and all four sort fields.
+
+Suggested commit: `Group cuisine detail icons and display restaurant contacts`.

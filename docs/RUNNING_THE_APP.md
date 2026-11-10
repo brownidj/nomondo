@@ -1,8 +1,8 @@
-# Running Nomondo in Chrome, macOS and iOS
+# Running BeneEde in Chrome, macOS and iOS
 
-Updated: 9 November 2026.
+Updated: 10 November 2026.
 
-Nomondo has two parts: a Python service that reads the restaurant database, and
+BeneEde has two parts: a Python service that reads the restaurant database, and
 a Flutter interface that displays it. Start the service first and keep it running
 while you use the interface. Browsing does not require an OpenAI API key.
 
@@ -24,7 +24,7 @@ The iOS instructions describe preparation that has not yet been applied.
 The project is currently located here:
 
 ```zsh
-cd '/Users/david/Library/Mobile Documents/com~apple~CloudDocs/PyCharm projects/Restaurants'
+cd '/Users/david/Library/Mobile Documents/com~apple~CloudDocs/PyCharm projects/BeneEde'
 ```
 
 All commands labelled **project root** below run from this directory, not from
@@ -67,7 +67,7 @@ From the **project root**:
 The terminal should print:
 
 ```text
-Nomondo data service: http://127.0.0.1:8765/api/restaurants
+BeneEde data service: http://127.0.0.1:8765/api/restaurants
 ```
 
 Leave this terminal running. The service reads `../data/restaurants.sqlite3` without
@@ -103,7 +103,7 @@ database just to launch the interface.
 In a **new terminal**, run:
 
 ```zsh
-cd '/Users/david/Library/Mobile Documents/com~apple~CloudDocs/PyCharm projects/Restaurants/flutter_app'
+cd '/Users/david/Library/Mobile Documents/com~apple~CloudDocs/PyCharm projects/BeneEde/flutter_app'
 flutter pub get
 flutter run -d chrome
 ```
@@ -127,12 +127,12 @@ This configuration is for Chrome on this Mac, not a browser on your phone.
 Keep terminal 1 running. In a **new terminal**:
 
 ```zsh
-cd '/Users/david/Library/Mobile Documents/com~apple~CloudDocs/PyCharm projects/Restaurants/flutter_app'
+cd '/Users/david/Library/Mobile Documents/com~apple~CloudDocs/PyCharm projects/BeneEde/flutter_app'
 flutter pub get
 flutter run -d macos
 ```
 
-A native **Nomondo** window should open. Its data comes from the same Python
+A native **BeneEde** window should open. Its data comes from the same Python
 service as the Chrome version. The project already includes the macOS network
 client entitlement and local-network transport configuration.
 
@@ -142,7 +142,7 @@ From `flutter_app`:
 
 ```zsh
 flutter build macos --release
-open 'build/macos/Build/Products/Release/Nomondo.app'
+open 'build/macos/Build/Products/Release/BeneEde.app'
 ```
 
 The built application still needs the Python service running on this Mac. The
@@ -158,12 +158,12 @@ following steps add one; they are not an already-tested iOS launch procedure.
 Save your current work before generating files. From `flutter_app`:
 
 ```zsh
-flutter create --platforms=ios --project-name=nomondo_app --org=au.com.nomondo --no-pub .
+flutter create --platforms=ios --project-name=beneede_app --org=au.com.beneede --no-pub .
 flutter pub get
 ```
 
 Review the generated changes with Git. Keep the existing `lib/` implementation
-and dependencies. Set the iOS display name to **Nomondo** in the generated
+and dependencies. Set the iOS display name to **BeneEde** in the generated
 `ios/Runner/Info.plist`.
 
 The interface uses a local HTTP endpoint. Add this entry **inside the existing
@@ -225,7 +225,7 @@ After generating the iOS target, the remaining work is:
 2. For a LAN endpoint, keep the Mac and phone on a network where they can reach
    each other, allow the service through the Mac firewall, and add
    `NSLocalNetworkUsageDescription` to the iOS `Info.plist`. Use wording such as
-   “Nomondo connects to your Mac to load your restaurant collection.” Configure
+   “BeneEde connects to your Mac to load your restaurant collection.” Configure
    the local HTTP transport policy as needed, or use HTTPS. Apple explains the
    permission in [Understanding local network privacy](https://developer.apple.com/documentation/technotes/tn3179-understanding-local-network-privacy).
 3. Open `ios/Runner.xcworkspace` in Xcode, select the **Runner** target and set
@@ -264,7 +264,7 @@ the Python service to the phone.
 | Chrome/macOS/simulator missing from `flutter devices` | Check `flutter doctor -v`; install the relevant browser/toolchain/runtime and start the simulator. |
 | Interface opens but restaurant data fails to load | Keep the Python terminal running and check the JSON endpoint on the Mac. |
 | “Database does not exist” | Start from the project root; confirm `../data/restaurants.sqlite3` exists, or use the missing-database steps above. |
-| “Could not open the local port” | A service may already be running. Check its endpoint or choose another port below. |
+| Port occupied | Startup replaces a verified older BeneEde service for this project/database. An unrelated or unverifiable listener is left running; close it yourself or choose another matching service/Flutter port below. |
 | iOS target missing | Generate the iOS target first; there is no iOS runner in this checkout yet. |
 | iPhone connects to itself or times out | Use a reachable service URL and complete the physical-device networking work above. |
 | Native build fails | Read the first substantive build error and check Xcode/toolchain setup. Avoid replacing the database or deleting project files as a troubleshooting step. |
@@ -284,3 +284,28 @@ flutter run -d chrome --dart-define=RESTAURANT_API_URL=http://127.0.0.1:8766
 Replace `chrome` with `macos` or the prepared simulator ID for those platforms.
 For another database, add `--db '/absolute/path/restaurants.sqlite3'` to the
 Python service command. The service's interface remains read-only.
+
+### Automatic port recovery
+
+Run `.venv/bin/python restaurant_server.py` as usual. Startup attempts the actual
+socket bind first and allows immediate address reuse after shutdown. If the port
+is busy, it uses psutil to identify a listener owned by the same user, executing
+this exact Python script for the same database and port. Only that matching
+service receives an interrupt; startup waits up to five seconds, then binds again.
+A different program, another project's service or a service using another
+database is left alone. There is no forced kill or silent switch to another port.
+The error reports a next step if ownership cannot be verified or shutdown fails.
+
+`psutil` is included in the project's Python dependencies. The current virtual
+environment has been updated. Changed server startup, package metadata and this
+guide; created `tests/test_restaurant_server_startup.py`. Python syntax and diff
+whitespace checks passed. Tests were added but not run, and no application was
+launched for verification, following the manual verification policy.
+
+Manual verification: from the project root run
+`.venv/bin/python -m unittest discover -s tests -p test_restaurant_server_startup.py -v`.
+Start the service in one terminal and run the same command in a second terminal;
+the previous service should stop and the new one should serve port 8765. Also
+check that a non-BeneEde listener on a spare port is left untouched. Record date,
+tester, environment and results. No commit was made; phase not applicable.
+Suggested commit: `Recover occupied port from a verified previous restaurant service`.

@@ -1,5 +1,5 @@
-name: nomondo_app
-description: "Nomondo: a searchable collection of restaurant discoveries."
+name: beneede_app
+description: "BeneEde: a searchable collection of restaurant discoveries."
 publish_to: 'none'
 version: 0.1.0+1
 
@@ -10,6 +10,8 @@ dependencies:
   flutter:
     sdk: flutter
   http: ^1.2.2
+  url_launcher: ^6.3.3
+  web: ^1.1.1
 
 dev_dependencies:
   flutter_test:
@@ -18,3 +20,25 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/fonts/LICENSE-NotoSans.txt
+    - assets/fonts/LICENSE-NotoCJK.txt
+    - assets/fonts/LICENSE-NotoEmoji.txt
+  fonts:
+    - family: NotoSans
+      fonts:
+        - asset: assets/fonts/NotoSans-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/NotoSans-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/NotoSans-Bold.ttf
+          weight: 700
+    - family: NotoSansCJK
+      fonts:
+        - asset: assets/fonts/NotoSansCJKjp-Regular.otf
+    - family: NotoSansThai
+      fonts:
+        - asset: assets/fonts/NotoSansThai-Regular.ttf
+    - family: NotoEmoji
+      fonts:
+        - asset: assets/fonts/NotoEmoji.ttf

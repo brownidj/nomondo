@@ -6,7 +6,7 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import Mock, patch
 
-import nomondo as n
+import beneede as n
 
 
 def restaurant(name='Nyhavns Færgekro', **overrides):

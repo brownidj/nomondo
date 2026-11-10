@@ -5,10 +5,10 @@
 // 'flutter create' template.
 
 // The application's name. By default this is also the title of the Flutter window.
-PRODUCT_NAME = Nomondo
+PRODUCT_NAME = BeneEde
 
 // The application's bundle identifier
 PRODUCT_BUNDLE_IDENTIFIER = au.com.nomondo.nomondoApp
 
 // The copyright displayed in application information
-PRODUCT_COPYRIGHT = Copyright © 2026 au.com.nomondo. All rights reserved.
+PRODUCT_COPYRIGHT = Copyright © 2026 au.com.beneede. All rights reserved.

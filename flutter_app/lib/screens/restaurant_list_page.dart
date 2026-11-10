@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../data/restaurant_repository.dart';
 import '../models/restaurant.dart';
 import '../models/restaurant_sort.dart';
+import '../services/restaurant_maps.dart';
 
 class RestaurantListPage extends StatefulWidget {
   const RestaurantListPage({super.key});
@@ -128,7 +130,7 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  'Nomondo',
+                                  'BeneEde',
                                   style: Theme.of(context)
                                       .textTheme
                                       .headlineMedium
@@ -204,7 +206,7 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
       onChanged: (_) => setState(() {}),
       decoration: InputDecoration(
         labelText: 'Search restaurants',
-        hintText: 'Name, location, cuisine, dish or notes',
+        hintText: 'Name, location, cuisine, dish, notes or contact details',
         prefixIcon: const Icon(Icons.search_rounded),
         suffixIcon: _search.text.isEmpty
             ? null
@@ -391,8 +393,6 @@ const _columns = <(String, int, RestaurantSortField?)>[
   ('City', 2, RestaurantSortField.city),
   ('Country', 2, RestaurantSortField.country),
   ('Cuisine', 3, RestaurantSortField.cuisine),
-  ('Special dish', 3, null),
-  ('Notes', 4, null),
 ];
 
 class _TableHeading extends StatelessWidget {
@@ -465,19 +465,140 @@ class _TableHeading extends StatelessWidget {
   );
 }
 
+class _RestaurantName extends StatefulWidget {
+  const _RestaurantName(this.restaurant);
+  final Restaurant restaurant;
+
+  @override
+  State<_RestaurantName> createState() => _RestaurantNameState();
+}
+
+class _RestaurantNameState extends State<_RestaurantName> {
+  final _telephoneTooltip = GlobalKey<TooltipState>();
+  final _internetTooltip = GlobalKey<TooltipState>();
+
+  @override
+  Widget build(BuildContext context) {
+    final telephone = widget.restaurant.telephone?.trim();
+    final hasTelephone =
+        telephone != null &&
+        telephone.isNotEmpty &&
+        telephone.toLowerCase() != 'not listed';
+    final internetLink = widget.restaurant.internetLink?.trim();
+    final hasInternetLink =
+        internetLink != null &&
+        internetLink.isNotEmpty &&
+        internetLink.toLowerCase() != 'not listed';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _Value(widget.restaurant.name, prominent: true),
+        if (hasTelephone || hasInternetLink)
+          Wrap(
+            spacing: 4,
+            children: [
+              if (hasTelephone)
+                Tooltip(
+                  key: _telephoneTooltip,
+                  message: telephone,
+                  triggerMode: TooltipTriggerMode.manual,
+                  showDuration: const Duration(seconds: 10),
+                  child: IconButton(
+                    icon: const Icon(
+                      Icons.phone_outlined,
+                      semanticLabel: 'Telephone',
+                    ),
+                    onPressed: () =>
+                        _telephoneTooltip.currentState?.ensureTooltipVisible(),
+                  ),
+                ),
+              if (hasInternetLink)
+                Tooltip(
+                  key: _internetTooltip,
+                  message: internetLink,
+                  triggerMode: TooltipTriggerMode.manual,
+                  showDuration: const Duration(seconds: 10),
+                  child: IconButton(
+                    icon: const Icon(Icons.language, semanticLabel: 'Website'),
+                    onPressed: () =>
+                        _internetTooltip.currentState?.ensureTooltipVisible(),
+                  ),
+                ),
+            ],
+          ),
+      ],
+    );
+  }
+}
+
+class _RestaurantCity extends StatefulWidget {
+  const _RestaurantCity(this.restaurant);
+  final Restaurant restaurant;
+
+  @override
+  State<_RestaurantCity> createState() => _RestaurantCityState();
+}
+
+class _RestaurantCityState extends State<_RestaurantCity> {
+  Future<void> _openMap() async {
+    String? message;
+    try {
+      if (!await openRestaurantMap(widget.restaurant)) {
+        message =
+            'Could not open Maps. The address is available in the tooltip.';
+      }
+    } on MissingPluginException {
+      message =
+          'Maps support needs an app restart. Stop Flutter and run it again.';
+    } catch (error) {
+      debugPrint('Map launch failed (${error.runtimeType}).');
+      message = 'Could not open Maps. The address is available in the tooltip.';
+    }
+    if (!mounted || message == null) return;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final address = widget.restaurant.address?.trim();
+    final hasAddress =
+        address != null &&
+        address.isNotEmpty &&
+        address.toLowerCase() != 'not listed';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _Value(widget.restaurant.city),
+        if (hasAddress)
+          Tooltip(
+            message: address,
+            triggerMode: TooltipTriggerMode.longPress,
+            showDuration: const Duration(seconds: 10),
+            child: IconButton(
+              icon: const Icon(
+                Icons.location_on_outlined,
+                semanticLabel: 'Open address in Maps',
+              ),
+              onPressed: _openMap,
+            ),
+          ),
+      ],
+    );
+  }
+}
+
 class _RestaurantRow extends StatelessWidget {
   const _RestaurantRow({super.key, required this.restaurant});
   final Restaurant restaurant;
 
   @override
   Widget build(BuildContext context) {
-    final values = [
-      restaurant.name,
-      restaurant.city,
-      restaurant.country,
-      restaurant.cuisine,
-      restaurant.specialDish,
-      restaurant.notes,
+    final values = <Widget>[
+      _RestaurantName(restaurant),
+      _RestaurantCity(restaurant),
+      _Value(restaurant.country),
+      _CuisineCell(restaurant),
     ];
     return ColoredBox(
       color: Colors.white,
@@ -489,7 +610,7 @@ class _RestaurantRow extends StatelessWidget {
             flex: _columns[index].$2,
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 18),
-              child: _Value(values[index], prominent: index == 0),
+              child: values[index],
             ),
           ),
         ),
@@ -513,31 +634,34 @@ class _RestaurantCard extends StatelessWidget {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _Value(restaurant.name, prominent: true),
+        _RestaurantName(restaurant),
         const SizedBox(height: 16),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(child: _Detail('City', restaurant.city)),
+            Expanded(
+              child: _Detail(
+                'City',
+                restaurant.city,
+                child: _RestaurantCity(restaurant),
+              ),
+            ),
             const SizedBox(width: 16),
             Expanded(child: _Detail('Country', restaurant.country)),
           ],
         ),
         const Divider(height: 28),
-        _Detail('Cuisine', restaurant.cuisine),
-        const SizedBox(height: 14),
-        _Detail('Special dish', restaurant.specialDish),
-        const SizedBox(height: 14),
-        _Detail('Notes', restaurant.notes),
+        _Detail('Cuisine', restaurant.cuisine, child: _CuisineCell(restaurant)),
       ],
     ),
   );
 }
 
 class _Detail extends StatelessWidget {
-  const _Detail(this.label, this.value);
+  const _Detail(this.label, this.value, {this.child});
   final String label;
   final String? value;
+  final Widget? child;
 
   @override
   Widget build(BuildContext context) => Column(
@@ -549,10 +673,146 @@ class _Detail extends StatelessWidget {
             ?.copyWith(color: Theme.of(context).colorScheme.primary),
       ),
       const SizedBox(height: 4),
-      _Value(value),
+      child ?? _Value(value),
     ],
   );
 }
+
+class _CuisineCell extends StatelessWidget {
+  const _CuisineCell(this.restaurant);
+
+  final Restaurant restaurant;
+
+  @override
+  Widget build(BuildContext context) {
+    final details = _DetailField.values
+        .where((field) => field.hasContent(restaurant))
+        .toList();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _CuisineValue(restaurant),
+        if (details.isNotEmpty) ...[
+          const SizedBox(height: 4),
+          Wrap(
+            spacing: 4,
+            children: details
+                .map((field) => _DetailIcon(restaurant, field: field))
+                .toList(),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _CuisineValue extends StatelessWidget {
+  const _CuisineValue(this.restaurant);
+
+  final Restaurant restaurant;
+
+  @override
+  Widget build(BuildContext context) {
+    final cuisine = restaurant.cuisine;
+    if (cuisine == null) return const _Value(null);
+    final words = cuisine.trim().split(RegExp(r'\s+'));
+    if (words.length <= 3) {
+      return _Value(cuisine);
+    }
+
+    return Tooltip(
+      message: 'View cuisine for ${restaurant.name}',
+      child: TextButton(
+        style: TextButton.styleFrom(
+          alignment: Alignment.centerLeft,
+          padding: EdgeInsets.zero,
+          minimumSize: Size.zero,
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          foregroundColor: Theme.of(context).colorScheme.onSurface,
+          textStyle: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w400,
+            height: 1.5,
+          ),
+        ),
+        onPressed: () => _showRestaurantDetail(
+          context,
+          restaurantName: restaurant.name,
+          label: 'Cuisine',
+          content: cuisine,
+        ),
+        // A word joiner keeps the ellipsis attached to the third word on wrap.
+        child: Text('${words.take(3).join(' ')}\u2060…'),
+      ),
+    );
+  }
+}
+
+enum _DetailField {
+  specialDish('Special dish', '🍽️'),
+  notes('Notes', '📝');
+
+  const _DetailField(this.label, this.icon);
+
+  final String label;
+  final String icon;
+
+  String? valueOf(Restaurant restaurant) => switch (this) {
+    _DetailField.specialDish => restaurant.specialDish,
+    _DetailField.notes => restaurant.notes,
+  };
+
+  bool hasContent(Restaurant restaurant) {
+    final value = valueOf(restaurant)?.trim().toLowerCase();
+    return value != null && value.isNotEmpty && value != 'not listed';
+  }
+}
+
+class _DetailIcon extends StatelessWidget {
+  const _DetailIcon(this.restaurant, {required this.field});
+
+  final Restaurant restaurant;
+  final _DetailField field;
+
+  @override
+  Widget build(BuildContext context) {
+    final content = field.valueOf(restaurant);
+    if (!field.hasContent(restaurant)) {
+      return const SizedBox.shrink();
+    }
+
+    return IconButton(
+      tooltip: 'View ${field.label.toLowerCase()} for ${restaurant.name}',
+      icon: Text(field.icon, style: const TextStyle(fontSize: 24)),
+      onPressed: () => _showRestaurantDetail(
+        context,
+        restaurantName: restaurant.name,
+        label: field.label,
+        content: content!,
+      ),
+    );
+  }
+}
+
+Future<void> _showRestaurantDetail(
+  BuildContext context, {
+  required String restaurantName,
+  required String label,
+  required String content,
+}) => showDialog<void>(
+  context: context,
+  builder: (dialogContext) => AlertDialog(
+    scrollable: true,
+    title: Text('$label — $restaurantName'),
+    content: SelectableText(content),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.of(dialogContext).pop(),
+        child: const Text('Close'),
+      ),
+    ],
+  ),
+);
 
 class _Value extends StatelessWidget {
   const _Value(this.value, {this.prominent = false});
