@@ -60,6 +60,7 @@ class EditTests(unittest.TestCase):
 
     def test_foreign_browser_origin_cannot_edit(self):
         handler = object.__new__(RestaurantHandler)
+        handler.client_address = ('127.0.0.1', 12345)
         handler.headers = Message()
         handler.headers['Origin'] = 'https://foreign.example'
         handler.headers['Host'] = '127.0.0.1:8765'
@@ -94,6 +95,7 @@ class EditTests(unittest.TestCase):
         from unittest.mock import patch
         body = json.dumps({'revision': self.revision, 'confirmed': False}).encode()
         handler = object.__new__(RestaurantHandler)
+        handler.client_address = ('127.0.0.1', 12345)
         handler.headers = Message()
         for key, value in {'Host': '127.0.0.1:8765', 'Content-Type': 'application/json',
                            'X-BeneEde-Edit': '1', 'Content-Length': str(len(body))}.items():

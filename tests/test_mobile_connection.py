@@ -28,6 +28,30 @@ class MobileConnectionTests(unittest.TestCase):
         self.assertFalse(self.handler('8.8.8.8', 'a' * 40).request_authorized())
         self.assertTrue(self.handler('127.0.0.1').request_authorized())
 
+    def test_server_proof_requires_a_private_peer_and_fresh_valid_challenge(self):
+        import hashlib
+        import hmac
+        for peer, challenge, status in [('192.168.50.20', 'b' * 32, 200),
+                                         ('8.8.8.8', 'b' * 32, 400),
+                                         ('192.168.50.20', 'short', 400)]:
+            handler = self.handler(peer)
+            handler.path = '/api/server-proof?challenge=' + challenge
+            handler.respond = Mock()
+            handler.do_GET()
+            self.assertEqual(handler.respond.call_args.args[0], status)
+            if status == 200:
+                proof = hmac.new(('a' * 40).encode(), ('beneede-server:' + challenge).encode(), hashlib.sha256).hexdigest()
+                self.assertEqual(handler.respond.call_args.args[1]['proof'], proof)
+                self.assertNotIn('a' * 40, str(handler.respond.call_args))
+
+    def test_service_readiness_does_not_accept_the_previous_process(self):
+        from scripts.prepare_mobile import service_ready
+        old = {'service': 'BeneEde', 'pairing_fingerprint': 'same-key', 'pid': 100}
+        self.assertFalse(service_ready(old, 'same-key', 200))
+        self.assertTrue(service_ready({**old, 'pid': 200}, 'same-key', 200))
+        self.assertFalse(service_ready({**old, 'pid': 200}, 'wrong-key', 200))
+        self.assertFalse(service_ready([], 'same-key', 200))
+
     def test_remote_ai_discovery_is_denied_even_when_paired(self):
         handler = self.handler('192.168.50.20', 'a' * 40)
         handler.path = '/api/restaurant-lookups'

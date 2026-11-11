@@ -75,3 +75,10 @@ key.properties
 *~
 *.swp
 *.swo
+
+# Generated private catalogue snapshot and public build configuration
+/flutter_app/assets/catalogue/initial_catalogue.json
+/data/catalogue_build.json
+
+# Locally exported distribution packages
+/data/releases/

@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 
 import '../data/restaurant_repository.dart';
+import '../data/mobile_catalogue.dart';
+import '../widgets/mobile_sync_status.dart';
 import '../models/restaurant.dart';
 import '../models/restaurant_sort.dart';
 import '../services/restaurant_maps.dart';
@@ -14,14 +17,43 @@ import '../widgets/cuisine_details.dart';
 import '../services/app_capabilities.dart';
 
 class RestaurantListPage extends StatefulWidget {
-  const RestaurantListPage({super.key});
+  const RestaurantListPage({super.key, this.repository});
+  final RestaurantRepository? repository;
 
   @override
   State<RestaurantListPage> createState() => _RestaurantListPageState();
 }
 
-class _RestaurantListPageState extends State<RestaurantListPage> {
-  final _repository = RestaurantRepository();
+class _RestaurantListPageState extends State<RestaurantListPage>
+    with WidgetsBindingObserver {
+  MobileCatalogue? _offline;
+  int _generation = -1;
+
+  void _localChanged() {
+    if (_offline!.generation == _generation) return;
+    _generation = _offline!.generation;
+    if (mounted) _load();
+  }
+
+  void _pointerActivity(PointerEvent event) => _offline?.activity();
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _offline?.resume();
+    } else {
+      _offline?.pause();
+    }
+  }
+
+  Future<void> _refresh() async {
+    if (_offline != null) {
+      await _offline!.syncAll();
+    }
+    if (mounted) await _load();
+  }
+
+  late final RestaurantRepository _repository;
   final _search = TextEditingController();
   final _scroll = ScrollController();
   List<Restaurant> _restaurants = const [];
@@ -38,11 +70,21 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
   @override
   void initState() {
     super.initState();
+    _repository = widget.repository ?? RestaurantRepository();
+    _offline = widget.repository == null ? MobileCatalogue.active : null;
+    _offline?.addListener(_localChanged);
+    _offline?.resume();
+    WidgetsBinding.instance.addObserver(this);
+    GestureBinding.instance.pointerRouter.addGlobalRoute(_pointerActivity);
     _load();
   }
 
   @override
   void dispose() {
+    _offline?.removeListener(_localChanged);
+    _offline?.pause();
+    WidgetsBinding.instance.removeObserver(this);
+    GestureBinding.instance.pointerRouter.removeGlobalRoute(_pointerActivity);
     _search.dispose();
     _scroll.dispose();
     _repository.close();
@@ -90,8 +132,15 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
       }
       if (!_citiesFor(_country).contains(_city)) _city = '';
     });
-    ScaffoldMessenger.of(context)
-        .showSnackBar(const SnackBar(content: Text('Restaurant saved')));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          _offline == null
+              ? 'Restaurant saved'
+              : 'Saved on this device — waiting to sync',
+        ),
+      ),
+    );
   }
 
   void _acceptDelete(int id) {
@@ -104,8 +153,15 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
       }
       if (!_citiesFor(_country).contains(_city)) _city = '';
     });
-    ScaffoldMessenger.of(context)
-        .showSnackBar(const SnackBar(content: Text('Restaurant deleted')));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          _offline == null
+              ? 'Restaurant deleted'
+              : 'Removed on this device — waiting to sync',
+        ),
+      ),
+    );
   }
 
   Future<void> _addRestaurant() async {
@@ -168,11 +224,16 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
             constraints: const BoxConstraints(maxWidth: 1680),
             child: LayoutBuilder(
               builder: (context, constraints) {
-                final wide = constraints.maxWidth >= 1150;
+                final wide = !isMobilePlatform && constraints.maxWidth >= 1150;
                 final compact = constraints.maxWidth < 650;
                 final padding = compact ? 16.0 : 32.0;
                 return Padding(
-                  padding: EdgeInsets.fromLTRB(padding, 24, padding, 0),
+                  padding: EdgeInsets.fromLTRB(
+                    padding,
+                    isMobilePlatform ? 8 : 24,
+                    padding,
+                    0,
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -207,18 +268,18 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
                           if (compact)
                             IconButton.filledTonal(
                               tooltip: 'Refresh restaurants',
-                              onPressed: _loading ? null : _load,
+                              onPressed: _loading ? null : _refresh,
                               icon: const Icon(Icons.refresh_rounded),
                             )
                           else
                             FilledButton.tonalIcon(
-                              onPressed: _loading ? null : _load,
+                              onPressed: _loading ? null : _refresh,
                               icon: const Icon(Icons.refresh_rounded),
                               label: const Text('Refresh'),
                             ),
                         ],
                       ),
-                      const SizedBox(height: 28),
+                      SizedBox(height: isMobilePlatform ? 10 : 28),
                       Text(
                         'The restaurant collection',
                         style: Theme.of(context).textTheme.titleLarge
@@ -228,9 +289,11 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
                       const Text(
                         'Find a place, a cuisine, or something worth trying.',
                       ),
-                      const SizedBox(height: 20),
+                      SizedBox(height: isMobilePlatform ? 8 : 20),
                       _filters(countries, cities, constraints.maxWidth < 1000),
-                      const SizedBox(height: 16),
+                      SizedBox(height: isMobilePlatform ? 6 : 16),
+                      if (_offline != null)
+                        MobileSyncStatus(catalogue: _offline!),
                       if (_failed) ...[
                         _errorMessage(),
                         const SizedBox(height: 12),
@@ -582,9 +645,15 @@ class _RestaurantListPageState extends State<RestaurantListPage> {
       controller: _scroll,
       child: ListView.separated(
         controller: _scroll,
-        padding: const EdgeInsets.only(bottom: 24),
+        padding: EdgeInsets.only(bottom: isMobilePlatform ? 8 : 24),
         itemCount: visible.length,
-        separatorBuilder: (_, _) => SizedBox(height: wide ? 1 : 12),
+        separatorBuilder: (_, _) => SizedBox(
+          height: wide
+              ? 1
+              : isMobilePlatform
+              ? 3
+              : 12,
+        ),
         itemBuilder: (context, index) {
           final restaurant = visible[index];
           return wide
@@ -782,97 +851,118 @@ class _RestaurantNameState extends State<_RestaurantName> {
         internetLink != null &&
         internetLink.isNotEmpty &&
         internetLink.toLowerCase() != 'not listed';
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SelectionArea(
-          child: Text.rich(
-            TextSpan(
-              text: widget.restaurant.name,
-              children: [
-                if (!widget.restaurant.isArchived)
-                  WidgetSpan(
-                    alignment: PlaceholderAlignment.middle,
-                    child: RestaurantReviewIndicator(
-                      restaurant: widget.restaurant,
-                      onReview: _review,
-                    ),
-                  ),
-              ],
-            ),
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              height: 1.5,
-              color: Theme.of(context).colorScheme.onSurface,
-            ),
-          ),
-        ),
-        Wrap(
-          spacing: 4,
+    final name = SelectionArea(
+      key: ValueKey('restaurant-name-${widget.restaurant.id}'),
+      child: Text.rich(
+        TextSpan(
+          text: widget.restaurant.name,
           children: [
-            if (hasTelephone)
-              ContactTooltip(
-                tooltipKey: _telephoneTooltip,
-                message: telephone,
-                child: IconButton(
-                  icon: const Icon(
-                    Icons.phone_outlined,
-                    semanticLabel: 'Telephone',
-                  ),
-                  onPressed: () =>
-                      _telephoneTooltip.currentState?.ensureTooltipVisible(),
+            if (!widget.restaurant.isArchived)
+              WidgetSpan(
+                alignment: PlaceholderAlignment.middle,
+                child: RestaurantReviewIndicator(
+                  restaurant: widget.restaurant,
+                  onReview: _review,
+                  compact: isMobilePlatform,
                 ),
               ),
-            if (hasInternetLink)
-              ContactTooltip(
-                message:
-                    'Press $internetLink to open the website'
-                    '${_websiteUnavailable ? '\nWebsite unavailable' : ''}',
-                child: IconButton(
-                  icon: Icon(
-                    Icons.language,
-                    color: _websiteUnavailable ? Colors.red : null,
-                    semanticLabel: _websiteUnavailable
-                        ? 'Website unavailable'
-                        : 'Open website',
-                  ),
-                  onPressed: _checkingWebsite ? null : _openWebsite,
-                ),
-              ),
-            ContactTooltip(
-              message: 'Edit restaurant',
-              child: IconButton(
-                icon: const Icon(
-                  Icons.edit_outlined,
-                  semanticLabel: 'Edit restaurant',
-                ),
-                onPressed: _edit,
-              ),
-            ),
-            if (widget.restaurant.isArchived) ...[
-              ContactTooltip(
-                message: 'Review archived restaurant',
-                child: IconButton(
-                  icon: const Icon(
-                    Icons.inventory_2_outlined,
-                    color: Colors.red,
-                    semanticLabel: 'Review archived restaurant',
-                  ),
-                  onPressed: _review,
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                child: Text(
-                  widget.restaurant.reviewLabel,
-                  style: Theme.of(context).textTheme.labelSmall,
-                ),
-              ),
-            ],
           ],
         ),
+        style: TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w600,
+          height: 1.5,
+          color: Theme.of(context).colorScheme.onSurface,
+        ),
+      ),
+    );
+    final actions = Wrap(
+      spacing: isMobilePlatform ? 0 : 4,
+      children: [
+        if (hasTelephone)
+          ContactTooltip(
+            tooltipKey: _telephoneTooltip,
+            message: telephone,
+            child: IconButton(
+              icon: const Icon(
+                Icons.phone_outlined,
+                semanticLabel: 'Telephone',
+              ),
+              onPressed: () =>
+                  _telephoneTooltip.currentState?.ensureTooltipVisible(),
+            ),
+          ),
+        if (hasInternetLink)
+          ContactTooltip(
+            message:
+                'Press $internetLink to open the website'
+                '${_websiteUnavailable ? '\nWebsite unavailable' : ''}',
+            child: IconButton(
+              icon: Icon(
+                Icons.language,
+                color: _websiteUnavailable ? Colors.red : null,
+                semanticLabel: _websiteUnavailable
+                    ? 'Website unavailable'
+                    : 'Open website',
+              ),
+              onPressed: _checkingWebsite ? null : _openWebsite,
+            ),
+          ),
+        ContactTooltip(
+          message: 'Edit restaurant',
+          child: IconButton(
+            icon: const Icon(
+              Icons.edit_outlined,
+              semanticLabel: 'Edit restaurant',
+            ),
+            onPressed: _edit,
+          ),
+        ),
+        if (widget.restaurant.isArchived) ...[
+          ContactTooltip(
+            message: 'Review archived restaurant',
+            child: IconButton(
+              icon: const Icon(
+                Icons.inventory_2_outlined,
+                color: Colors.red,
+                semanticLabel: 'Review archived restaurant',
+              ),
+              onPressed: _review,
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Text(
+              widget.restaurant.reviewLabel,
+              style: Theme.of(context).textTheme.labelSmall,
+            ),
+          ),
+        ],
       ],
+    );
+    if (isMobilePlatform) {
+      return IconButtonTheme(
+        data: IconButtonThemeData(
+          style: IconButton.styleFrom(
+            iconSize: 18,
+            minimumSize: const Size(32, 32),
+            padding: EdgeInsets.zero,
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            visualDensity: VisualDensity.compact,
+          ),
+        ),
+        child: Row(
+          children: [
+            Expanded(child: name),
+            const SizedBox(width: 4),
+            actions,
+          ],
+        ),
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [name, actions],
     );
   }
 }
@@ -908,7 +998,9 @@ class _RestaurantCityState extends State<_RestaurantCity> {
   Widget build(BuildContext context) {
     final city = widget.restaurant.city?.trim();
     if (city == null || city.isEmpty || city.toLowerCase() == 'not listed') {
-      return _Value(widget.restaurant.city);
+      return isMobilePlatform
+          ? const Text('City: Not listed', style: TextStyle(fontSize: 13))
+          : _Value(widget.restaurant.city);
     }
     return ContactTooltip(
       message: 'Click to show map and address',
@@ -916,15 +1008,21 @@ class _RestaurantCityState extends State<_RestaurantCity> {
         onPressed: _openMap,
         style: TextButton.styleFrom(
           padding: EdgeInsets.zero,
-          minimumSize: const Size(0, 32),
+          minimumSize: Size(0, isMobilePlatform ? 0 : 32),
+          tapTargetSize: isMobilePlatform
+              ? MaterialTapTargetSize.shrinkWrap
+              : null,
           alignment: Alignment.centerLeft,
-          textStyle: const TextStyle(
-            fontSize: 14,
+          textStyle: Theme.of(context).textTheme.bodyMedium!.copyWith(
+            fontSize: isMobilePlatform ? 13 : 14,
             fontWeight: FontWeight.w400,
-            height: 1.5,
+            height: isMobilePlatform ? 1.3 : 1.5,
           ),
         ),
-        child: Text(city, textAlign: TextAlign.left),
+        child: Text(
+          isMobilePlatform ? 'City: $city' : city,
+          textAlign: TextAlign.left,
+        ),
       ),
     );
   }
@@ -980,41 +1078,91 @@ class _RestaurantCard extends StatelessWidget {
   final ValueChanged<int> onDeleted;
 
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(20),
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(14),
-      border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _RestaurantName(restaurant, onSaved: onSaved, onDeleted: onDeleted),
-        const SizedBox(height: 16),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: _Detail(
-                'City',
-                restaurant.city,
-                child: _RestaurantCity(restaurant),
-              ),
+  Widget build(BuildContext context) => isMobilePlatform
+      ? Container(
+          key: ValueKey('restaurant-card-${restaurant.id}'),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(5),
+            border: Border.all(
+              color: Theme.of(context).colorScheme.outlineVariant,
             ),
-            const SizedBox(width: 16),
-            Expanded(child: _Detail('Country', restaurant.country)),
-          ],
-        ),
-        const Divider(height: 28),
-        _Detail(
-          'Cuisine',
-          restaurant.cuisine,
-          child: CuisineDetails(restaurant: restaurant),
-        ),
-      ],
-    ),
-  );
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _RestaurantName(
+                restaurant,
+                onSaved: onSaved,
+                onDeleted: onDeleted,
+              ),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: _RestaurantCity(restaurant)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: SelectableText(
+                      'Country: ${restaurant.country ?? 'Not listed'}',
+                      style: const TextStyle(fontSize: 13, height: 1.3),
+                    ),
+                  ),
+                ],
+              ),
+              Row(
+                children: [
+                  const Text(
+                    'Cuisine: ',
+                    style: TextStyle(fontSize: 13, height: 1.3),
+                  ),
+                  Expanded(child: CuisineDetails(restaurant: restaurant)),
+                ],
+              ),
+            ],
+          ),
+        )
+      : Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: Theme.of(context).colorScheme.outlineVariant,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _RestaurantName(
+                restaurant,
+                onSaved: onSaved,
+                onDeleted: onDeleted,
+              ),
+              const SizedBox(height: 16),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: _Detail(
+                      'City',
+                      restaurant.city,
+                      child: _RestaurantCity(restaurant),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(child: _Detail('Country', restaurant.country)),
+                ],
+              ),
+              const Divider(height: 28),
+              _Detail(
+                'Cuisine',
+                restaurant.cuisine,
+                child: CuisineDetails(restaurant: restaurant),
+              ),
+            ],
+          ),
+        );
 }
 
 class _Detail extends StatelessWidget {

@@ -263,6 +263,13 @@ class _ReviewRestaurantDialogState extends State<_ReviewRestaurantDialog> {
                   ),
                   const SizedBox(height: 10),
                 ],
+                if (details?['offline_notice'] != null) ...[
+                  Text(
+                    details!['offline_notice'] as String,
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: 8),
+                ],
                 if (_noteAtTop) _reviewNote(),
                 _detail('Review status', _restaurant.reviewLabel),
                 if (_restaurant.reviewedAt != null)

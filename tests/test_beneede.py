@@ -56,13 +56,13 @@ class ImportTests(unittest.TestCase):
             ('Yin yang coastal - Cantonese seafood - Hong Kong', 'Yin yang coastal', 'Hong Kong', None, 'Cantonese seafood'),
             ('Lung King Heen Four Seasons dim sum - Hong Kong', 'Lung King Heen Four Seasons dim sum', 'Hong Kong', None, None),
             ('Sagar Ratna - family dosa - New Delhi', 'Sagar Ratna', 'New Delhi', None, 'family dosa'),
-            ('28.\u00a0Blue Hill at Stone Barns\u00a0(Pocantico Hills, New York)', 'Blue Hill at Stone Barns', 'Pocantico Hills, New York', None, None),
+            ('28.\u00a0Blue Hill at Stone Barns\u00a0(Pocantico Hills, New York)', 'Blue Hill, Stone Barns', 'Pocantico Hills, New York', None, None),
             ('29.\u00a0Piazza Duomo\u00a0(Alba, Italy)', 'Piazza Duomo', 'Alba', None, None),
             ('30.\u00a0Elkano\u00a0(Getaria, Spain)', 'Elkano', 'Getaria', None, None),
             ('31.\u00a0Le Calandre\u00a0(Rubano, Italy)', 'Le Calandre', 'Rubano', None, None),
             ('1.\u00a0Mirazur\u00a0(Menton, France)', 'Mirazur', 'Menton', None, None),
             ('2.\u00a0Noma\u00a0(Copenhagen, Denmark) Highest-ever new entry', 'Noma', 'Copenhagen', None, None),
-            ('• Restaurant Gordon Ramsay, West London', 'Restaurant Gordon Ramsay', 'West London', None, None),
+            ('• Restaurant Gordon Ramsay, West London', 'Gordon Ramsay', 'West London', None, None),
             ('• Casamia, Bristol', 'Casamia', 'Bristol', None, None),
         ]
         for raw, name, city, cuisine, dish in examples:

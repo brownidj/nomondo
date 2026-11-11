@@ -3,6 +3,7 @@
 set -euo pipefail
 BENEEDE_PROJECT_ROOT="${0:A:h:h}"
 "$BENEEDE_PROJECT_ROOT/.venv/bin/python" "$BENEEDE_PROJECT_ROOT/scripts/prepare_mobile.py"
+"$BENEEDE_PROJECT_ROOT/.venv/bin/python" "$BENEEDE_PROJECT_ROOT/scripts/package_catalogue.py"
 "$BENEEDE_PROJECT_ROOT/scripts/prepare_ios_build.zsh"
 if (( $+commands[flutter] )); then
   BENEEDE_FLUTTER_BIN="${commands[flutter]}"

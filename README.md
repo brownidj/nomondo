@@ -62,6 +62,14 @@ See [City suggestions](docs/CITY_AUTOCOMPLETE.md) for coverage and attribution,
 and [Review and archive](docs/REVIEWING_RESTAURANTS.md) for recording Passed/Failed
 decisions, inspecting source evidence and restoring archived restaurants.
 
+## TestFlight distribution
+
+See [TestFlight builds, Transporter and optional Shorebird](docs/TESTFLIGHT_AND_TRANSPORTER.md)
+for exporting an IPA, uploading it and inviting a private tester. The guide also
+explains packaged initial data and one-time pairing for invited users. See
+[packaged catalogue and automatic network-return sync](docs/PACKAGED_CATALOGUE_AND_SYNC.md)
+for offline use and reconnecting to your Mac.
+
 ## Import and research
 
 ```sh

@@ -25,7 +25,7 @@ from beneede import connect
 from restaurant_lookup import LookupManager
 from restaurant_additions import create_records
 from city_index import suggest_cities, DEFAULT_INDEX, ATTRIBUTION
-from restaurant_reviews import read_review, save_review
+from restaurant_reviews import read_review, save_review, read_offline_catalogue
 from mobile_connection import ensure_mobile_connection
 
 ROOT = Path(__file__).resolve().parent
@@ -182,14 +182,37 @@ class RestaurantHandler(BaseHTTPRequestHandler):
         if not self.origin_allowed():
             self.respond(403, {'error': 'Only local browser origins are allowed'})
             return
+        path = urlsplit(self.path).path
+        if path == '/api/server-proof':
+            token = getattr(self.server, 'access_token', None)
+            try:
+                private_peer = ipaddress.ip_address(self.client_address[0]).is_private
+                challenge = parse_qs(urlsplit(self.path).query, max_num_fields=1).get('challenge', [''])[0]
+                if not private_peer or not token or not re.fullmatch(r'[a-f0-9]{32}', challenge):
+                    self.respond(400, {'error': 'Invalid server identity request.'})
+                    return
+                proof = hmac.new(token.encode(), ('beneede-server:' + challenge).encode(), hashlib.sha256).hexdigest()
+                self.respond(200, {'service': 'BeneEde', 'proof': proof})
+            except ValueError:
+                self.respond(400, {'error': 'Invalid server identity request.'})
+            return
         if not self.request_authorized():
             self.respond(401, {'error': 'This device is not paired with the catalogue service.'})
             return
-        path = urlsplit(self.path).path
         if path == '/api/health':
             token = getattr(self.server, 'access_token', None)
-            self.respond(200, {'service': 'BeneEde', 'mobile_access': bool(token),
+            self.respond(200, {'service': 'BeneEde', 'pid': os.getpid(), 'mobile_access': bool(token),
                                'pairing_fingerprint': hashlib.sha256(token.encode()).hexdigest()[:16] if token else None})
+            return
+        if path == '/api/offline-catalogue':
+            try:
+                params = parse_qs(urlsplit(self.path).query, max_num_fields=1)
+                version = params.get('version', [''])[0]
+                self.respond(200, read_offline_catalogue(self.server.database, version))
+            except ValueError:
+                self.respond(400, {'error': 'Invalid snapshot request.'})
+            except sqlite3.Error:
+                self.respond(503, {'error': 'The offline catalogue is temporarily unavailable.'})
             return
         review = re.fullmatch(r'/api/restaurants/(\d+)/review', path)
         if review:

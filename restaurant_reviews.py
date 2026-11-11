@@ -2,6 +2,7 @@
 from contextlib import closing
 from datetime import datetime, timezone
 import json
+import hashlib
 import sqlite3
 
 from restaurant_edits import EditError, public_record, revision
@@ -31,18 +32,38 @@ def read_review(database, ident):
         row = db.execute('SELECT * FROM restaurants WHERE id=?', (ident,)).fetchone()
         if row is None:
             raise EditError(404, 'Restaurant no longer exists. Refresh the list.')
-        source_ids = {row['source_id']}
-        source_ids.update(item[0] for item in db.execute(
-            'SELECT source_id FROM consolidation_sources WHERE survivor_id=?', (ident,)))
-        sources = [dict(source) for source in db.execute(
-            'SELECT source_file,line_number,raw_text FROM source_lines WHERE id IN ('
-            + ','.join('?' for _ in source_ids) + ') ORDER BY id', sorted(source_ids))]
-        history = [dict(item) for item in db.execute('''SELECT reviewed_at,decision,note
-            FROM restaurant_review_history WHERE restaurant_id=? ORDER BY id DESC''', (ident,))]
-        return {'restaurant': public_record(row), 'review_reasons': json.loads(row['review_reasons']),
-                'evidence': json.loads(row['evidence']), 'duplicate_ids': json.loads(row['duplicate_ids']),
-                'confidence': row['confidence'], 'sources': sources, 'history': history,
-                'alternatives': json.loads(row['record_history'])}
+        return _review_details(db, row)
+
+
+def _review_details(db, row):
+    ident = row['id']
+    source_ids = {row['source_id']}
+    source_ids.update(item[0] for item in db.execute(
+        'SELECT source_id FROM consolidation_sources WHERE survivor_id=?', (ident,)))
+    sources = [dict(source) for source in db.execute(
+        'SELECT source_file,line_number,raw_text FROM source_lines WHERE id IN ('
+        + ','.join('?' for _ in source_ids) + ') ORDER BY id', sorted(source_ids))]
+    history = [dict(item) for item in db.execute('''SELECT reviewed_at,decision,note
+        FROM restaurant_review_history WHERE restaurant_id=? ORDER BY id DESC''', (ident,))]
+    return {'restaurant': public_record(row), 'review_reasons': json.loads(row['review_reasons']),
+            'evidence': json.loads(row['evidence']), 'duplicate_ids': json.loads(row['duplicate_ids']),
+            'confidence': row['confidence'], 'sources': sources, 'history': history,
+            'alternatives': json.loads(row['record_history'])}
+
+
+def read_offline_catalogue(database, known_version=''):
+    """One read transaction keeps records and source evidence in the same snapshot."""
+    with closing(sqlite3.connect(database.resolve().as_uri() + '?mode=ro', uri=True, timeout=5)) as db:
+        db.row_factory = sqlite3.Row
+        db.execute('BEGIN')
+        rows = db.execute('SELECT * FROM restaurants ORDER BY id').fetchall()
+        records = [public_record(row) for row in rows]
+        reviews = {str(row['id']): _review_details(db, row) for row in rows}
+        snapshot = {'restaurants': records, 'reviews': reviews}
+        version = hashlib.sha256(json.dumps(snapshot, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
+        if version == known_version:
+            return {'version': version, 'unchanged': True}
+        return {'version': version, **snapshot}
 
 
 def save_review(database, ident, expected_revision, decision, note):

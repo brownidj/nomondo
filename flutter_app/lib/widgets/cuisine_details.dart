@@ -31,11 +31,8 @@ class CuisineDetails extends StatelessWidget {
           minimumSize: Size.zero,
           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
           foregroundColor: Theme.of(context).colorScheme.onSurface,
-          textStyle: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w400,
-            height: 1.5,
-          ),
+          textStyle: Theme.of(context).textTheme.bodyMedium!
+              .copyWith(fontSize: 14, fontWeight: FontWeight.w400, height: 1.5),
         ),
         onPressed: () => _showDetails(context, restaurant),
         child: Text(preview),

@@ -12,6 +12,12 @@ sys.path.insert(0, str(ROOT))
 from mobile_connection import ensure_mobile_connection
 
 
+def service_ready(status, fingerprint, process_id):
+    return (isinstance(status, dict) and status.get('service') == 'BeneEde'
+            and status.get('pairing_fingerprint') == fingerprint
+            and status.get('pid') == process_id)
+
+
 def main():
     config = ensure_mobile_connection()
     log = ROOT / 'data' / 'logs' / 'mobile_service.log'
@@ -26,7 +32,7 @@ def main():
         try:
             with urlopen('http://127.0.0.1:8766/api/health', timeout=1) as response:
                 status = json.load(response)
-            if status.get('service') == 'BeneEde' and status.get('pairing_fingerprint') == expected:
+            if service_ready(status, expected, process.pid):
                 print('Mobile catalogue:', config['RESTAURANT_API_URL'])
                 print('Keep this Mac awake and both devices on the same private Wi-Fi.')
                 return

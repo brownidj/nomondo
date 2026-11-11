@@ -6,7 +6,7 @@ import unittest
 
 from beneede import connect
 from restaurant_edits import EditError, revision, save_edit
-from restaurant_reviews import read_review, save_review
+from restaurant_reviews import read_review, save_review, read_offline_catalogue
 
 
 class RestaurantReviewTests(unittest.TestCase):
@@ -32,6 +32,26 @@ class RestaurantReviewTests(unittest.TestCase):
         self.assertEqual(details['sources'][0]['raw_text'], 'Original restaurant notes')
         self.assertEqual(details['evidence'][0]['url'], 'https://example.com')
         self.assertEqual(details['history'], [])
+
+    def test_offline_snapshot_contains_matching_records_and_evidence(self):
+        snapshot = read_offline_catalogue(self.path)
+        self.assertEqual(snapshot['restaurants'][0], snapshot['reviews']['1']['restaurant'])
+        self.assertEqual(snapshot['reviews']['1']['sources'][0]['raw_text'], 'Original restaurant notes')
+        self.assertEqual(read_offline_catalogue(self.path, snapshot['version']),
+                         {'version': snapshot['version'], 'unchanged': True})
+
+    def test_offline_snapshot_detects_source_changes_and_deleted_records(self):
+        before = read_offline_catalogue(self.path)
+        with self.db:
+            self.db.execute("UPDATE source_lines SET raw_text='Corrected source notes' WHERE id=1")
+        changed = read_offline_catalogue(self.path, before['version'])
+        self.assertNotEqual(changed['version'], before['version'])
+        self.assertEqual(changed['reviews']['1']['sources'][0]['raw_text'], 'Corrected source notes')
+        with self.db:
+            self.db.execute('DELETE FROM restaurants WHERE id=1')
+        empty = read_offline_catalogue(self.path, changed['version'])
+        self.assertEqual(empty['restaurants'], [])
+        self.assertEqual(empty['reviews'], {})
 
     def test_pass_clears_queue_without_erasing_flags_or_user_data(self):
         result = save_review(self.path, 1, self.revision, 'passed', 'Confirmed details')

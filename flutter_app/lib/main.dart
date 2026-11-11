@@ -7,7 +7,9 @@ void main() {
 }
 
 class BeneEdeApp extends StatelessWidget {
-  const BeneEdeApp({super.key});
+  const BeneEdeApp({super.key, this.home});
+
+  final Widget? home;
 
   @override
   Widget build(BuildContext context) {
@@ -33,7 +35,7 @@ class BeneEdeApp extends StatelessWidget {
           ),
         ),
       ),
-      home: const RestaurantListPage(),
+      home: home ?? const RestaurantListPage(),
     );
   }
 }

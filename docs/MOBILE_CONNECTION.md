@@ -129,3 +129,65 @@ Deployment result: the updated physical-iPhone release compiled successfully
 (Xcode 14.8s), installed/launched in 1.569s and the non-resident launcher exited
 successfully. No automated tests or analyzer run were performed. Visual checks
 of the new rows on the device remain for David.
+
+## Dense mobile records — 11 November 2026
+
+Goal and acceptance: maximise visible records on iOS/Android, with telephone,
+website and edit actions right-aligned beside the restaurant name. Show
+`City: <city>` and `Country: <country>` together on the next row, followed by
+cuisine. Keep map, review, telephone, website and editing interactions working.
+
+Implemented mobile cards with 8px horizontal/6px vertical padding, no internal
+spacers, a 3px gap between records, compact action buttons and a smaller pending
+review control. Reduced mobile header/list gaps as well. Long values can still
+wrap instead of losing information. Desktop presentation remains unchanged.
+Mobile tablets also use these compact cards.
+
+Modified `restaurant_list_page.dart` and `restaurant_review_indicator.dart`;
+extended `mobile_catalogue_layout_test.dart` with a mocked catalogue checking
+action positions, the shared location row and compact record height on iOS and
+Android. Optional repository injection supports that test without a live server.
+No files removed and no catalogue data changed. This documentation was updated.
+
+Dart formatting and `git diff --check` passed. Automated tests and analysis were
+not run. For focused verification from `flutter_app`, run:
+
+```zsh
+flutter test test/mobile_catalogue_layout_test.dart
+```
+
+Manual acceptance remains for David: inspect short and long names/cities on the
+phone, confirm more cards fit, and check each action and the clickable city.
+Large accessibility text can increase record height. Implementation complete;
+visual acceptance pending. Phase: not applicable. Suggested commit:
+`Compact mobile restaurant records and align actions beside names`.
+
+The paired physical-iPhone release built successfully (Xcode 14.9s), installed
+and launched in 1.994s. The launcher exited successfully. Device visual checks
+remain pending; this deployment does not represent an automated test run.
+
+## Offline mobile catalogue — 11 November 2026
+
+Native mobile now uses a local SQLite snapshot and durable mutation queue.
+The app now includes its starting catalogue. Keep the paired service running
+for subsequent syncs; it is not needed for offline browsing or local edits.
+A small sync status line exposes pending work, manual sync and conflicts.
+The service includes the authenticated `/api/offline-catalogue` snapshot endpoint.
+See [offline behaviour, conflict rules and manual checks](OFFLINE_MOBILE.md).
+
+
+## Current bundle identifier — 11 November 2026
+
+The iOS/macOS bundle identifier is now `org.topository.beneede`. Older deployment
+notes above refer to the former identifier used for those historical builds.
+New devicectl launches should target the new ID once that build is installed.
+The new ID uses a separate app data container; sync old pending edits first.
+
+
+## Shared build bootstrap and pairing
+
+See [packaged catalogue and network-return sync](PACKAGED_CATALOGUE_AND_SYNC.md).
+Shared builds include data/public URL, while invited phones enter the Mac pairing
+key once. The key is saved securely on the phone and is never included in the
+packaged snapshot or shared build defines. The updated service supplies the server
+identity proof. The prepare helper waits for the new process, not an older listener.

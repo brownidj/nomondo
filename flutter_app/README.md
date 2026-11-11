@@ -254,3 +254,10 @@ interpretation of unstructured website text. Website JSON-LD extraction and
 manual entry do not require AI. API usage may incur charges. The key stays in the
 service environment. Restart the Python service and reload Flutter after updating.
 See [implementation and manual verification](../docs/ADDING_RESTAURANTS.md).
+
+
+## TestFlight and Transporter
+
+See [the distribution guide](../docs/TESTFLIGHT_AND_TRANSPORTER.md) for the local
+IPA build helper, Apple Transporter upload steps, TestFlight invitations and
+optional Shorebird initialization. Shorebird is not required for TestFlight.

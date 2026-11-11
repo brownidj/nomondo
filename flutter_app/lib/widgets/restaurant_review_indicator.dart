@@ -8,10 +8,12 @@ class RestaurantReviewIndicator extends StatelessWidget {
     super.key,
     required this.restaurant,
     required this.onReview,
+    this.compact = false,
   });
 
   final Restaurant restaurant;
   final VoidCallback onReview;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -39,7 +41,7 @@ class RestaurantReviewIndicator extends StatelessWidget {
       child: TextButton(
         onPressed: onReview,
         style: TextButton.styleFrom(
-          minimumSize: const Size(44, 44),
+          minimumSize: compact ? const Size(0, 28) : const Size(44, 44),
           padding: const EdgeInsets.symmetric(horizontal: 6),
           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
           foregroundColor: Theme.of(context).colorScheme.onSurface,
