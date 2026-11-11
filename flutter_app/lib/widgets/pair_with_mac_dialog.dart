@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../data/mobile_catalogue.dart';
 
@@ -19,11 +20,34 @@ class _PairWithMacDialog extends StatefulWidget {
 class _PairWithMacDialogState extends State<_PairWithMacDialog> {
   final _key = TextEditingController();
   bool _busy = false;
+  bool _showKey = false;
   String? _error;
   @override
   void dispose() {
     _key.dispose();
     super.dispose();
+  }
+
+  Future<void> _pasteKey() async {
+    try {
+      final data = await Clipboard.getData(Clipboard.kTextPlain);
+      if (!mounted) return;
+      final value = data?.text?.trim() ?? '';
+      setState(() {
+        if (value.isEmpty) {
+          _error = 'Copy the Mac pairing key first, then press Paste key.';
+        } else {
+          _key.text = value;
+          _error = null;
+        }
+      });
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _error = 'Could not read the clipboard. Touch and hold the key field to paste.';
+        });
+      }
+    }
   }
 
   Future<void> _pair() async {
@@ -54,27 +78,53 @@ class _PairWithMacDialogState extends State<_PairWithMacDialog> {
     canPop: !_busy,
     child: AlertDialog(
       title: const Text('Pair with Mac'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Text(
-            'Connect to the Mac’s network and ask the owner for its pairing key. The key stays on this phone.',
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _key,
-            obscureText: true,
-            autocorrect: false,
-            enableSuggestions: false,
-            enabled: !_busy,
-            decoration: const InputDecoration(labelText: 'Mac pairing key'),
-          ),
-          if (_error != null)
-            Text(
-              _error!,
-              style: TextStyle(color: Theme.of(context).colorScheme.error),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Connect to the Mac’s network. Copy its pairing key and paste it here rather than typing it. The key stays on this phone.',
             ),
-        ],
+            const SizedBox(height: 12),
+            TextField(
+              controller: _key,
+              obscureText: !_showKey,
+              maxLines: _showKey ? 3 : 1,
+              autocorrect: false,
+              enableSuggestions: false,
+              smartQuotesType: SmartQuotesType.disabled,
+              smartDashesType: SmartDashesType.disabled,
+              keyboardType: TextInputType.visiblePassword,
+              style: const TextStyle(fontFamily: 'monospace'),
+              enabled: !_busy,
+              decoration: InputDecoration(
+                labelText: 'Mac pairing key',
+                suffixIcon: IconButton(
+                  tooltip: _showKey ? 'Hide key' : 'Show key',
+                  onPressed: _busy
+                      ? null
+                      : () => setState(() => _showKey = !_showKey),
+                  icon: Icon(
+                    _showKey ? Icons.visibility_off : Icons.visibility,
+                  ),
+                ),
+              ),
+            ),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: _busy ? null : _pasteKey,
+                icon: const Icon(Icons.content_paste),
+                label: const Text('Paste key'),
+              ),
+            ),
+            if (_error != null)
+              Text(
+                _error!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+          ],
+        ),
       ),
       actions: [
         TextButton(

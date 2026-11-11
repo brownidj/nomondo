@@ -66,8 +66,56 @@ class _SyncDialog extends StatefulWidget {
 
 class _SyncDialogState extends State<_SyncDialog> {
   String? _error;
+  bool _wasSyncing = false;
+  bool _completedSync = false;
 
-  Future<void> _pair() => pairWithMac(context, widget.catalogue);
+  @override
+  void initState() {
+    super.initState();
+    _wasSyncing = widget.catalogue.syncing;
+    widget.catalogue.addListener(_syncChanged);
+  }
+
+  @override
+  void dispose() {
+    widget.catalogue.removeListener(_syncChanged);
+    super.dispose();
+  }
+
+  bool get _successfullySynced =>
+      !widget.catalogue.syncing &&
+      widget.catalogue.online &&
+      widget.catalogue.lastError == null &&
+      widget.catalogue.lastSynced != null &&
+      !widget.catalogue.hasChanges &&
+      widget.catalogue.pendingCount == 0 &&
+      widget.catalogue.conflicts.isEmpty;
+
+  void _syncChanged() {
+    if (_wasSyncing && !widget.catalogue.syncing) {
+      _completedSync = _successfullySynced;
+      _closeAfterSync();
+    }
+    _wasSyncing = widget.catalogue.syncing;
+  }
+
+  void _closeAfterSync() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted &&
+          _completedSync &&
+          _successfullySynced &&
+          ModalRoute.of(context)?.isCurrent == true) {
+        Navigator.pop(context);
+      }
+    });
+  }
+
+  Future<void> _pair() async {
+    await pairWithMac(context, widget.catalogue);
+    if (mounted) {
+      _closeAfterSync();
+    }
+  }
 
   Widget _facts(Map<String, dynamic>? row, {required String fallback}) {
     if (row == null) {
@@ -164,7 +212,7 @@ class _SyncDialogState extends State<_SyncDialog> {
               ),
               const SizedBox(height: 8),
               const Text(
-                'Sync runs while the app is open and idle. Keep the Mac awake and reachable. An initial catalogue is included. Changes sync when you return to the paired Mac’s network. Maps and websites still need internet access.',
+                'Sync checks every 15 seconds while the app is open, after at least 5 seconds without interaction. Keep the Mac awake and reachable. An initial catalogue is included. Changes sync when you return to the paired Mac’s network. This window closes when sync succeeds with no pending changes or conflicts. Maps and websites still need internet access.',
               ),
               if (catalogue.pairWithServer != null)
                 TextButton.icon(

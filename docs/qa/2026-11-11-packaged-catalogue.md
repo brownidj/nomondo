@@ -36,3 +36,21 @@ restaurant records were modified by the automated tests.
 See [packaging, pairing and synchronization](../PACKAGED_CATALOGUE_AND_SYNC.md).
 
 Suggested commit: `Package initial catalogue and sync local mobile changes on network return`.
+
+## Pairing test repair after sync-modal changes
+
+David's later run passed all 101 Python tests and Flutter analysis, but one of
+70 Flutter tests failed. On the 390 × 844 test viewport, the longer sync help
+text placed Pair with Mac below the visible scroll area. The test attempted a
+tap without scrolling, so no pairing dialog opened and enterText failed with
+`Bad state: No element`.
+
+Updated `mobile_pairing_dialog_test.dart` to scroll the actual pairing button
+into view, tap it, and assert the key field exists before entering text. No
+production code change was required. Reran that test file: both tests passed,
+including clipboard paste/show-key and successful pairing, plus sync failure
+retention and automatic dismissal after successful sync. The full suite and
+IPA build were not rerun for this test-only repair. Dependency update notices
+in the supplied output are informational, not test failures.
+
+Suggested commit: `Scroll pairing button into view before interacting in widget test`.

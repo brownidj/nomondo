@@ -5,6 +5,7 @@ BENEEDE_PROJECT_ROOT="${0:A:h:h}"
 BENEEDE_BUILD_NUMBER=""
 BENEEDE_BUILD_NAME=""
 BENEEDE_DRY_RUN=false
+BENEEDE_IPA_DESTINATION="$BENEEDE_PROJECT_ROOT/build/ios/ipa/beneede_app.ipa"
 
 usage() {
   print 'Usage: scripts/build_testflight.zsh --build-number <integer> [--build-name <x.y.z>] [--dry-run]'
@@ -49,6 +50,7 @@ if $BENEEDE_DRY_RUN; then
   print -r -- "Working directory: $BENEEDE_PROJECT_ROOT/flutter_app"
   printf '%q ' "${BENEEDE_COMMAND[@]}"
   print
+  print -r -- "Move exported IPA to: $BENEEDE_IPA_DESTINATION (replace previous export)"
   exit 0
 fi
 if [[ ! -x "$BENEEDE_FLUTTER_BIN" ]]; then
@@ -64,7 +66,9 @@ cd "$BENEEDE_PROJECT_ROOT/flutter_app"
 BENEEDE_NEW_IPA=false
 for BENEEDE_IPA in "$BENEEDE_PROJECT_ROOT/flutter_app/build/ios/ipa/"*.ipa(N); do
   if [[ "$BENEEDE_IPA" -nt "$BENEEDE_BUILD_MARKER" ]]; then
-    print -r -- "New IPA for Transporter: $BENEEDE_IPA"
+    mkdir -p "${BENEEDE_IPA_DESTINATION:h}"
+    mv -f "$BENEEDE_IPA" "$BENEEDE_IPA_DESTINATION"
+    print -r -- "New IPA for Transporter: $BENEEDE_IPA_DESTINATION"
     BENEEDE_NEW_IPA=true
   fi
 done

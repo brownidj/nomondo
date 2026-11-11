@@ -104,7 +104,7 @@ Transporter is installed on David's Mac. Otherwise obtain
 3. Reveal the export folder in Finder from the project root:
 
    ```zsh
-   open flutter_app/build/ios/ipa
+   open build/ios/ipa
    ```
 
 4. Drag the **new `.ipa` file** onto Transporter, or select it through **Add App**.
@@ -212,6 +212,15 @@ Suggested commit: `Set BeneEde Apple bundle identifier to org.topository.beneede
 
 
 ## Transporter icon preview and replacement build
+
+The distribution helper now moves each successful IPA export to the project-root
+`build/ios/ipa/beneede_app.ipa`, overwriting the previous export. Use that stable
+path for Transporter rather than the Flutter cache or a versioned copy under
+`data/releases/`. A failed build leaves the previous delivered-path file intact;
+check that the build command succeeded before uploading. Direct `flutter build
+ipa` commands still use Flutter's own output path; use `scripts/build_testflight.zsh`
+for the managed destination. This output-location change was checked with zsh
+syntax validation; no app rebuild was run for it.
 
 The build 2 IPA was inspected directly: its primary AppIcon settings and native
 PNG artwork contain the BeneEde logo. The generic icon in Transporter's Active

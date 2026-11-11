@@ -40,6 +40,19 @@ continually polled. This remains a private LAN HTTP service, not an internet hos
 
 ## Pair each invited phone once
 
+The open sync details window now closes after a successful sync with no pending
+changes or conflicts, including automatic sync and the sync after pairing. Errors
+and conflicts leave it open. Opening an already-synced catalogue's details does
+not close the window until another sync completes. Idle checks run every 15
+seconds, require at least 5 seconds without interaction, and only run while the
+app is in the foreground. A pending edit normally starts syncing after 5–20
+seconds; returning to the Mac network uses a separate 2-second debounce.
+
+Implementation verification: regression coverage was added to
+`flutter_app/test/mobile_pairing_dialog_test.dart` for failure retention and
+automatic completion. Tests and a replacement distribution build have not been
+run for this UI change; verify on the iPhone after rebuilding.
+
 On the Mac, start/update the service:
 
 ```zsh
@@ -54,6 +67,13 @@ network, they open BeneEde's small sync status line, press **Pair with Mac**, pa
 the key and press **Pair**. The app verifies the Mac, saves the key in iOS Keychain
 (Android uses secure platform storage), and syncs. Future connections sync without
 re-entering the key. A failed pairing attempt does not replace a saved key.
+
+The pairing dialog provides **Paste key** and **Show key / Hide key** controls.
+Copy the entire key to the iPhone clipboard, then press Paste key; surrounding
+spaces and line breaks are trimmed. Do not type the long key by hand. The key
+remains hidden by default and is sent only when Pair is pressed. These controls
+require a new app build; existing build 3 users can touch and hold the field and
+choose Paste using the standard iOS menu.
 
 This is a shared catalogue-access key for trusted clients, not an Apple Account
 password or a separate ownership role. It is not a per-device revocation system.
