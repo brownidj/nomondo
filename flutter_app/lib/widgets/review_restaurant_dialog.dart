@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 
 import '../data/restaurant_repository.dart';
+import '../data/mobile_catalogue.dart';
 import '../models/restaurant.dart';
 import '../services/restaurant_website.dart';
 import 'edit_restaurant_dialog.dart';
@@ -28,11 +29,22 @@ Future<RestaurantEditResult?> reviewRestaurant(
   BuildContext context,
   Restaurant restaurant, {
   RestaurantRepository? repository,
-}) => showDialog<RestaurantEditResult>(
-  context: context,
-  barrierDismissible: false,
-  builder: (_) => _ReviewRestaurantDialog(restaurant, repository),
-);
+}) async {
+  final catalogue = repository == null ? MobileCatalogue.active : null;
+  RestaurantEditResult? result;
+  await catalogue?.beginEditing();
+  try {
+    if (!context.mounted) return null;
+    result = await showDialog<RestaurantEditResult>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => _ReviewRestaurantDialog(restaurant, repository),
+    );
+    return result;
+  } finally {
+    catalogue?.endEditing(saved: result != null);
+  }
+}
 
 class _ReviewRestaurantDialog extends StatefulWidget {
   const _ReviewRestaurantDialog(this.restaurant, this.repository);

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../data/restaurant_repository.dart';
+import '../data/mobile_catalogue.dart';
 import '../models/restaurant.dart';
 import '../services/restaurant_website.dart';
 import '../services/app_capabilities.dart';
@@ -26,11 +27,22 @@ class RestaurantEditResult {
 Future<RestaurantEditResult?> editRestaurant(
   BuildContext context,
   Restaurant restaurant,
-) => showDialog<RestaurantEditResult>(
-  context: context,
-  barrierDismissible: false,
-  builder: (_) => _EditRestaurantDialog(restaurant),
-);
+) async {
+  final catalogue = MobileCatalogue.active;
+  RestaurantEditResult? result;
+  await catalogue?.beginEditing();
+  try {
+    if (!context.mounted) return null;
+    result = await showDialog<RestaurantEditResult>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => _EditRestaurantDialog(restaurant),
+    );
+    return result;
+  } finally {
+    catalogue?.endEditing(saved: result != null);
+  }
+}
 
 Future<RestaurantAddResult?> addRestaurant(
   BuildContext context, {

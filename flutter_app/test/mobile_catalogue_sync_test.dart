@@ -57,6 +57,53 @@ http.Response snapshot(List<Map<String, dynamic>> rows) => reply({
 });
 
 void main() {
+  test(
+    'nested edit inside review defers all sync until the saved flow closes',
+    () async {
+      var current = row(1, 'r1');
+      var requests = 0;
+      final catalogue = MobileCatalogue(
+        baseUrl: 'http://mac:8766',
+        store: MemoryStore(),
+        remote: MockClient((request) async {
+          requests++;
+          if (request.method == 'PATCH') {
+            final body = jsonDecode(request.body);
+            current = {...current, ...body['changes'], 'revision': 'r2'};
+            return reply({'restaurant': current});
+          }
+          return snapshot([current]);
+        }),
+      );
+      await catalogue.catalogue();
+      await catalogue.beginEditing(); // Review.
+      await catalogue.beginEditing(); // Edit details.
+      await catalogue.mutate('PATCH', 1, {
+        'revision': 'r1',
+        'changes': {'notes': 'Saved locally'},
+      });
+      await catalogue.synchronizeIfChanged();
+      await catalogue.syncAll();
+      expect(requests, 1);
+      catalogue.endEditing(saved: true);
+      await catalogue.syncAll();
+      expect(catalogue.editing, isTrue);
+      expect(requests, 1);
+      catalogue.endEditing(saved: false); // Close review after saving details.
+      await catalogue.syncAll();
+      expect(catalogue.editing, isFalse);
+      expect(catalogue.pendingCount, 0);
+      expect(current['notes'], 'Saved locally');
+      expect(requests, 3);
+      final beforeCancel = requests;
+      await catalogue.beginEditing();
+      catalogue.endEditing(saved: false);
+      await Future<void>.delayed(Duration.zero);
+      expect(requests, beforeCancel);
+      catalogue.dispose();
+    },
+  );
+
   test('clean catalogues do not poll; edits set and successful sync clears the flag', () async {
     final store = MemoryStore();
     var current = row(1, 'r1');

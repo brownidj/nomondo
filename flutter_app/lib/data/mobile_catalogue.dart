@@ -47,6 +47,27 @@ class MobileCatalogue extends ChangeNotifier {
   bool online = false;
   String? lastError;
   int generation = 0;
+  int _editingDepth = 0;
+  bool _savedDuringEditing = false;
+  bool get editing => _editingDepth > 0;
+
+  /// Nested editors share one barrier. Finish an existing sync before showing
+  /// the form, then keep its record stable until the whole review flow closes.
+  Future<void> beginEditing() async {
+    _editingDepth++;
+    await _sync;
+  }
+
+  void endEditing({required bool saved}) {
+    _savedDuringEditing = _savedDuringEditing || saved;
+    _editingDepth--;
+    if (editing || _disposed) return;
+    final shouldSync = _savedDuringEditing;
+    _savedDuringEditing = false;
+    activity();
+    notifyListeners();
+    if (shouldSync && foreground) unawaited(syncAll());
+  }
 
   int get pendingCount => (_state?['outbox'] as List?)?.length ?? 0;
   bool get hasChanges => _state?['has_changes'] == true;
@@ -438,12 +459,15 @@ class MobileCatalogue extends ChangeNotifier {
     return _json({'restaurant': _project()[id.toString()]});
   });
 
-  Future<void> synchronize() =>
-      _sync ??= _synchronize().whenComplete(() => _sync = null);
+  Future<void> synchronize() {
+    if (editing || _disposed) return Future<void>.value();
+    return _sync ??= _synchronize().whenComplete(() => _sync = null);
+  }
 
   /// No HTTP requests or disk writes for a clean catalogue. Conflicts wait for
   /// a user decision instead of repeatedly contacting the Mac.
   Future<void> synchronizeIfChanged() async {
+    if (editing || _disposed) return;
     if (checkLocalNetwork != null && !_localNetworkEligible) {
       return;
     }
@@ -476,6 +500,7 @@ class MobileCatalogue extends ChangeNotifier {
   /// An explicit refresh drains independent queued changes. Automatic idle work
   /// sends a single change per interval so it yields quickly to foreground use.
   Future<void> syncAll() async {
+    if (editing || _disposed) return;
     do {
       final count = pendingCount;
       final issues = conflicts.length;

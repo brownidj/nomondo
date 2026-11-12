@@ -30,6 +30,7 @@ class _RestaurantListPageState extends State<RestaurantListPage>
   int _generation = -1;
 
   void _localChanged() {
+    if (_offline!.editing) return;
     if (_offline!.generation == _generation) return;
     _generation = _offline!.generation;
     if (mounted) _load();

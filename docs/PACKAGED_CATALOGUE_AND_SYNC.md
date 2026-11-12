@@ -40,6 +40,16 @@ continually polled. This remains a private LAN HTTP service, not an internet hos
 
 ## Pair each invited phone once
 
+Editing and review now suspend synchronization for the entire open dialog flow.
+This includes Edit details opened from a review: saving those details keeps them
+local until the enclosing review is closed or a review decision is saved. Any
+sync already running finishes before the dialog opens. Catalogue list refreshes
+are also deferred while the dialogs are open, so they cannot replace the row
+that owns the active editor. Save, confirmed Delete, and saved review decisions
+allow immediate sync after the flow closes. Cancel does not save or initiate a
+sync; existing queued changes retain their normal idle/network-return retry.
+Errors keep the dialog and entered values available for correction.
+
 The open sync details window now closes after a successful sync with no pending
 changes or conflicts, including automatic sync and the sync after pairing. Errors
 and conflicts leave it open. Opening an already-synced catalogue's details does
